@@ -785,8 +785,8 @@ const cellClass =
                   
 
                     // 1. Actualizar existencia y precio venta en tabla articulos
-                    // ingnore update error con: erro: _
-                    const { error: _ } = await supabase
+                   
+                    const { error: updateError } = await supabase
                     .from("articulos")
                     .update({
                       existencia: nuevaExistencia,
@@ -796,7 +796,12 @@ const cellClass =
                     })
                     .eq("id", ingresarArticulo.id);
 
-                    
+                    if (updateError) {
+                      alert("Error al actualizar el stock y precio de venta");
+                      console.error(updateError);
+                      return;
+                    }
+
                     
 
                     // 2. Insertar en ingarticulos
