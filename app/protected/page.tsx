@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import HomeAdmin from "@/components/administrador/homeadmin";
-import HomeUsuario from "@/components/usuarios/homeusuario";
+import HomeUsuario from "@/components/clientes/homeclientes";
 
 
 
