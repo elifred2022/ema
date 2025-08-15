@@ -1,6 +1,7 @@
 "use client";
 
 import { useCarrito } from "@/app/context/CarritoContext";
+import ConfirmarCompra from "./confirmarcompra";
 
 export default function Carrito() {
   const {
@@ -56,6 +57,10 @@ export default function Carrito() {
         ))}
       </ul>
       <p className="text-right font-bold mt-4">Total: ${total.toFixed(2)}</p>
+       {/* 👇 Botón para confirmar compra */}
+      <div className="mt-4">
+        <ConfirmarCompra />
+      </div>
     </div>
   );
 }

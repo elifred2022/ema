@@ -19,6 +19,7 @@ type CarritoContextType = {
   aumentarCantidad: (id: number) => void;
   disminuirCantidad: (id: number) => void;
   total: number;
+ limpiarCarrito: () => void; // 👈 añadimos esta línea
 };
 
 const CarritoContext = createContext<CarritoContextType | undefined>(undefined);
@@ -66,6 +67,13 @@ export function CarritoProvider({ children }: { children: ReactNode }) {
     );
   };
 
+  // 👇 Nueva función
+  const limpiarCarrito = () => {
+    setCarrito([]);
+    localStorage.removeItem("carrito"); // si lo guardas en localStorage
+  };
+
+
   const total = carrito.reduce((acc, a) => acc + a.precio_venta * a.cantidad, 0);
 
   return (
@@ -76,7 +84,9 @@ export function CarritoProvider({ children }: { children: ReactNode }) {
         eliminarArticulo,
         aumentarCantidad,
         disminuirCantidad,
+        limpiarCarrito,
         total,
+       
       }}
     >
       {children}

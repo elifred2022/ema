@@ -9,11 +9,13 @@ type Cliente = {
   nombre: string;
   direccion: string;
   telefono: string;
+  email: string;
 };
 
 export default function ClienteInfo() {
   const supabase = createClient();
   const [cliente, setCliente] = useState<Cliente | null>(null);
+  const [userEmail, setUserEmail] = useState<string | null>(null);
   const [cargando, setCargando] = useState(true);
 
   useEffect(() => {
@@ -28,9 +30,11 @@ export default function ClienteInfo() {
         return;
       }
 
+      setUserEmail(user.email || null);
+
       const { data, error } = await supabase
         .from("clientes")
-        .select("id, nombre, direccion, telefono")
+        .select("id, nombre, direccion, telefono, email")
         .eq("user_id", user.id)
         .single();
 
@@ -50,28 +54,25 @@ export default function ClienteInfo() {
 
   return (
     <div className="fixed top-4 left-4 bg-yellow-100 shadow-lg p-3 rounded-lg border text-sm z-50">
-
       {cliente ? (
-        <div  >
-            <p>Almacen Dios con nosotros</p>
-            <p>Cliente</p>
+        <div>
+          <p>Almacen Dios con nosotros</p>
+          <p>Cliente</p>
           <p className="font-bold">{cliente.nombre}</p>
+          <p className="text-sm text-gray-600">{cliente.email}</p>
           <Link
-            href="/auth/rut-clientes/form-cliente"
+            href={`/auth/rut-clientes/form-cliente?email=${userEmail}`}
             className="inline-block px-4 py-2 mb-4 bg-gray-400 text-white font-semibold rounded-md shadow hover:bg-blue-700 transition-colors duration-200"
           >
-            Agrear/Editar datos
+            Agregar/Editar datos
           </Link>
-          
-          
         </div>
-         
       ) : (
         <div>
           <p className="text-gray-600">Datos no registrados</p>
           <Link
-            href="/cliente-form"
-            className="text-blue-500 underline text-xs"
+            href={`/auth/rut-clientes/form-cliente?email=${userEmail}`}
+            className="inline-block px-4 py-2 mb-4 bg-gray-400 text-white font-semibold rounded-md shadow hover:bg-blue-700 transition-colors duration-200"
           >
             Completar datos
           </Link>
