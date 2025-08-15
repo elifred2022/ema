@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { MercadoPagoConfig, Payment } from "mercadopago";
 import { createClient } from "@/lib/supabase/server";
 
+// Esto fuerza a que la ruta se ejecute en el entorno de Node.js en lugar del Edge Runtime
+export const runtime = 'nodejs';
+
 // Configurar el Access Token de Mercado Pago
 const client = new MercadoPagoConfig({
   accessToken: process.env.MP_ACCESS_TOKEN!,
