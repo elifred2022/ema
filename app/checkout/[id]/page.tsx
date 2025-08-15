@@ -5,13 +5,30 @@ import { createClient } from "@/lib/supabase/client";
 import { useParams } from "next/navigation";
 import { initMercadoPago, Wallet } from "@mercadopago/sdk-react";
 
+// Definir tipos para las estructuras de datos de la orden
+interface OrdenItem {
+  id: number;
+  nombre_articulo: string;
+  cantidad: number;
+  precio_unit: number;
+  subtotal: number;
+}
+
+interface Orden {
+  id: number;
+  total: number;
+  estado: string;
+  orden_items: OrdenItem[];
+}
+
 // Inicializar SDK React (Frontend)
 initMercadoPago(process.env.NEXT_PUBLIC_MP_PUBLIC_KEY!, { locale: "es-AR" });
 
 export default function CheckoutPage() {
   const supabase = createClient();
   const params = useParams();
-  const [orden, setOrden] = useState<any>(null);
+  // Usar el tipo Orden en lugar de 'any'
+  const [orden, setOrden] = useState<Orden | null>(null);
   const [preferenceId, setPreferenceId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -36,7 +53,7 @@ export default function CheckoutPage() {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        items: orden.orden_items.map((i: any) => ({
+        items: orden.orden_items.map((i) => ({
           title: i.nombre_articulo,
           quantity: i.cantidad,
           unit_price: i.precio_unit,
@@ -56,7 +73,7 @@ export default function CheckoutPage() {
       <h1 className="text-2xl font-bold mb-4">Checkout</h1>
 
       <ul className="mb-4">
-        {orden.orden_items.map((item: any) => (
+        {orden.orden_items.map((item) => (
           <li key={item.id} className="flex justify-between border-b py-2">
             <span>{item.nombre_articulo} x {item.cantidad}</span>
             <span>${item.subtotal.toFixed(2)}</span>
