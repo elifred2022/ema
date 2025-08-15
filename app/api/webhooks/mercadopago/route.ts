@@ -52,7 +52,7 @@ export async function POST(req: NextRequest) {
           break;
       }
       
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from("ordenes")
         .update({ estado: newStatus })
         .eq("id", orderId);

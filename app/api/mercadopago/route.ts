@@ -24,7 +24,7 @@ export async function POST(req: NextRequest) {
     
     // 4. Crear el objeto de la preferencia de pago
     const preferenceBody = {
-      items: items.map((item: any) => ({
+      items: items.map((item: { title: string; quantity: number; unit_price: number | string }) => ({
         // El formato de Mercado Pago requiere que el precio sea un número
         title: item.title,
         quantity: item.quantity,

@@ -97,8 +97,9 @@ export default function CheckoutPage() {
 
       const data = await res.json();
       setPreferenceId(data.id);
-    } catch (err: any) {
-      setError(err.message || "Ocurrió un error inesperado al iniciar el pago.");
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : "Ocurrió un error inesperado al iniciar el pago.";
+      setError(errorMessage);
       console.error(err);
     } finally {
       setIsLoading(false);
