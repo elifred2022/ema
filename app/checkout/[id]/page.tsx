@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useParams } from "next/navigation";
-import { initMercadoPago, Wallet } from "@mercadopago/sdk-react";
 import { mercadopagoConfig } from "@/lib/mercadopago";
 
 // Definir tipos para las estructuras de datos de la orden
@@ -22,8 +21,7 @@ interface Orden {
   orden_items: OrdenItem[];
 }
 
-// Inicializar SDK React (Frontend)
-initMercadoPago(mercadopagoConfig.publicKey, { locale: mercadopagoConfig.locale });
+// Configuración de MercadoPago para el frontend
 
 export default function CheckoutPage() {
   const supabase = createClient();

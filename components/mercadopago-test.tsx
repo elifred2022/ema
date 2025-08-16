@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react";
 import { mercadopagoConfig, validateConfig } from "@/lib/mercadopago";
-import { debugEnvVars } from "@/lib/mercadopago-debug";
 import { checkEnvVars, tempConfig } from "@/lib/mercadopago-temp";
 
 export default function MercadoPagoTest() {
