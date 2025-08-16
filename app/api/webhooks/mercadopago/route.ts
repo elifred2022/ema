@@ -1,18 +1,21 @@
 import { NextResponse } from "next/server";
-import { MercadoPagoConfig, Payment } from "mercadopago";
+import { Payment } from "mercadopago";
 import type { NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { createMercadoPagoClient } from "@/lib/mercadopago";
 
-// 1. Configurar las credenciales de Mercado Pago
-const client = new MercadoPagoConfig({
-  accessToken: process.env.MP_ACCESS_TOKEN!,
-});
+const client = createMercadoPagoClient();
 
 // 2. Definir la función POST del webhook
 export async function POST(req: NextRequest) {
   try {
+    console.log("=== WEBHOOK MERCADOPAGO RECIBIDO ===");
+    console.log("Headers:", Object.fromEntries(req.headers.entries()));
+    
     const body = await req.json();
-    console.log("Notificación de Mercado Pago recibida:", body);
+    console.log("Body completo:", JSON.stringify(body, null, 2));
+    console.log("Tipo de notificación:", body.type);
+    console.log("Data:", body.data);
 
     // 3. Verificar si el tipo de notificación es un pago
     if (body.type === "payment") {

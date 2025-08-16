@@ -4,7 +4,8 @@
     "dev": "next dev --turbopack",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "setup-mercadopago": "node setup-mercadopago.js"
   },
   "dependencies": {
     "@mercadopago/sdk-react": "^1.0.4",
