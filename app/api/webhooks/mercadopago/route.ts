@@ -5,10 +5,10 @@ import { createClient } from "@/lib/supabase/server";
 import { createMercadoPagoClient } from "@/lib/mercadopago";
 
 // Crear el cliente de forma defensiva para evitar errores durante el build
-let client: any = null;
+let client: ReturnType<typeof createMercadoPagoClient> | null = null;
 try {
   client = createMercadoPagoClient();
-} catch (error) {
+} catch {
   // Durante el build, el cliente puede no estar disponible
   console.log("Cliente de MercadoPago no disponible durante el build");
 }
