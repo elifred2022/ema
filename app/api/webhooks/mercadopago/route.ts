@@ -77,7 +77,7 @@ export async function GET() {
   }
 }
 
-// 2. Definir la función POST del webhook
+// 2. Definir la función POST del webhook - VERSIÓN SIMPLIFICADA
 export async function POST(req: NextRequest) {
   try {
     console.log("=== WEBHOOK MERCADOPAGO RECIBIDO ===");
@@ -85,45 +85,65 @@ export async function POST(req: NextRequest) {
     console.log("URL:", req.url);
     console.log("Method:", req.method);
     
+    // Respuesta inmediata para evitar timeout
+    const response = NextResponse.json({ message: "Webhook received, processing..." });
+    
+    // Procesar el webhook de forma asíncrona
+    processWebhookAsync(req).catch(error => {
+      console.error("❌ Error en procesamiento asíncrono:", error);
+    });
+    
+    return response;
+
+  } catch (error) {
+    console.error("❌ Error en el Webhook de Mercado Pago:", error);
+    console.error("Stack trace:", error instanceof Error ? error.stack : "No stack trace");
+    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+  }
+}
+
+// Función asíncrona para procesar el webhook
+async function processWebhookAsync(req: NextRequest) {
+  try {
     const body = await req.json();
     console.log("Body completo:", JSON.stringify(body, null, 2));
     console.log("Tipo de notificación:", body.type);
     console.log("Data:", body.data);
 
-    // 3. Verificar si el tipo de notificación es un pago
+    // Verificar si el tipo de notificación es un pago
     if (body.type === "payment") {
       const paymentId = body.data.id;
       console.log("🆔 Payment ID recibido:", paymentId);
 
-      // 4. Verificar que el cliente esté disponible
+      // Verificar que el cliente esté disponible
       if (!client) {
         console.error("❌ Cliente de MercadoPago no disponible");
-        return NextResponse.json({ message: "MercadoPago client not available." }, { status: 500 });
+        return;
       }
       console.log("✅ Cliente de MercadoPago disponible");
 
-      // 5. Consultar los detalles del pago a la API de Mercado Pago
+      // Consultar los detalles del pago a la API de Mercado Pago
       console.log("🔍 Consultando detalles del pago en MercadoPago...");
       const paymentInstance = new Payment(client);
       const paymentDetails = await paymentInstance.get({ id: paymentId });
       console.log("📋 Detalles del pago:", JSON.stringify(paymentDetails, null, 2));
 
-      // 6. Obtener la referencia externa (el ID de tu orden de Supabase)
+      // Obtener la referencia externa (el ID de tu orden de Supabase)
       const orderId = paymentDetails.external_reference;
       console.log("🏷️ Order ID (external_reference):", orderId);
       
-      // 7. Si no hay ID de orden, no podemos continuar
+      // Si no hay ID de orden, no podemos continuar
       if (!orderId) {
         console.error("❌ ID de orden no encontrado en el pago.");
-        return NextResponse.json({ message: "No order ID found." }, { status: 400 });
+        return;
       }
 
-      // 8. Conectar con Supabase del lado del servidor
+      // Conectar con Supabase del lado del servidor
       console.log("🔌 Conectando a Supabase...");
       const supabase = await createClient();
       console.log("✅ Conexión a Supabase establecida");
 
-      // 9. Actualizar el estado de la orden según el estado del pago
+      // Actualizar el estado de la orden según el estado del pago
       let newStatus = "";
       switch (paymentDetails.status) {
         case "approved":
@@ -148,7 +168,7 @@ export async function POST(req: NextRequest) {
           break;
       }
       
-      // 10. Actualizar el estado de la orden
+      // Actualizar el estado de la orden
       console.log(`🔄 Actualizando orden ${orderId} a estado: ${newStatus}`);
       const { error: updateOrderError } = await supabase
         .from("ordenes")
@@ -157,11 +177,11 @@ export async function POST(req: NextRequest) {
 
       if (updateOrderError) {
         console.error("❌ Error al actualizar la orden en Supabase:", updateOrderError);
-        return NextResponse.json({ message: "Error updating order in database." }, { status: 500 });
+        return;
       }
       console.log("✅ Estado de la orden actualizado exitosamente");
 
-      // 11. Si el pago fue aprobado, descontar el stock de los artículos
+      // Si el pago fue aprobado, descontar el stock de los artículos
       if (paymentDetails.status === "approved") {
         console.log(`💰 Pago aprobado para orden ${orderId}. Descontando stock...`);
         
@@ -175,7 +195,7 @@ export async function POST(req: NextRequest) {
 
           if (itemsError) {
             console.error("❌ Error al obtener items de la orden:", itemsError);
-            // No retornamos error aquí, solo logueamos para no interrumpir el proceso
+            return;
           } else if (orderItems && orderItems.length > 0) {
             console.log(`📋 Procesando ${orderItems.length} items para descuento de stock`);
             
@@ -223,21 +243,15 @@ export async function POST(req: NextRequest) {
           }
         } catch (stockError) {
           console.error("❌ Error durante el proceso de descuento de stock:", stockError);
-          // No retornamos error aquí, solo logueamos para no interrumpir el proceso
         }
       }
 
       console.log(`🎯 Orden ${orderId} procesada completamente. Estado final: ${newStatus}`);
-      return NextResponse.json({ message: "Webhook processed successfully." });
+    } else {
+      console.log("ℹ️ Notificación recibida pero no es de tipo 'payment'");
     }
 
-    // Retornar una respuesta exitosa para otras notificaciones que no sean de tipo 'pago'
-    console.log("ℹ️ Notificación recibida pero no es de tipo 'payment'");
-    return NextResponse.json({ message: "Notification type not payment." });
-
   } catch (error) {
-    console.error("❌ Error en el Webhook de Mercado Pago:", error);
-    console.error("Stack trace:", error instanceof Error ? error.stack : "No stack trace");
-    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+    console.error("❌ Error en procesamiento del webhook:", error);
   }
 }
