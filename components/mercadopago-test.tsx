@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react";
 import { mercadopagoConfig, validateConfig } from "@/lib/mercadopago";
-import { checkEnvVars, tempConfig } from "@/lib/mercadopago-temp";
 
 export default function MercadoPagoTest() {
   const [configStatus, setConfigStatus] = useState<ReturnType<typeof validateConfig> | null>(null);
@@ -167,25 +166,23 @@ export default function MercadoPagoTest() {
           </p>
         </div>
 
-        <div className="bg-blue-50 p-4 rounded-lg">
-          <h3 className="font-semibold text-blue-700 mb-2">Depuración</h3>
-          <div className="space-y-2">
-            <button
-              onClick={() => {
-                console.log("=== DEPURACIÓN DEL COMPONENTE ===");
-                checkEnvVars();
-                console.log("Configuración temporal:", tempConfig);
-                console.log("mercadopagoConfig:", mercadopagoConfig);
-              }}
-              className="w-full bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors"
-            >
-              Depurar en Consola (F12)
-            </button>
-            <p className="text-xs text-blue-600">
-              Haz clic y luego abre la consola del navegador (F12 → Console)
-            </p>
-          </div>
-        </div>
+                   <div className="bg-blue-50 p-4 rounded-lg">
+             <h3 className="font-semibold text-blue-700 mb-2">Depuración</h3>
+             <div className="space-y-2">
+               <button
+                 onClick={() => {
+                   console.log("=== DEPURACIÓN DEL COMPONENTE ===");
+                   console.log("mercadopagoConfig:", mercadopagoConfig);
+                 }}
+                 className="w-full bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors"
+               >
+                 Depurar en Consola (F12)
+               </button>
+               <p className="text-xs text-blue-600">
+                 Haz clic y luego abre la consola del navegador (F12 → Console)
+               </p>
+             </div>
+           </div>
       </div>
     </div>
   );

@@ -21,8 +21,6 @@ interface Orden {
   orden_items: OrdenItem[];
 }
 
-// Configuración de MercadoPago para el frontend
-
 export default function CheckoutPage() {
   const supabase = createClient();
   const params = useParams();
@@ -176,13 +174,7 @@ export default function CheckoutPage() {
             </p>
           </div>
           
-          <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
-            <p className="text-blue-800 text-sm">
-              <strong>Debug:</strong> Inicializando componente Wallet con preferenceId: {preferenceId}
-            </p>
-          </div>
-          
-                    <div className="border border-gray-200 rounded-lg p-4">
+          <div className="border border-gray-200 rounded-lg p-4">
             <div className="text-center space-y-4">
               <p className="text-gray-700">
                 <strong>Preference ID:</strong> {preferenceId}
