@@ -84,7 +84,7 @@ export default function ConfirmarCompra() {
   };
 
   // Función para validar stock disponible
-  const validateStock = async (carritoItems: any[], supabaseClient: any) => {
+  const validateStock = async (carritoItems: typeof carrito, supabaseClient: typeof supabase) => {
     try {
       const invalidItems: string[] = [];
       
