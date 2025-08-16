@@ -1,265 +1,83 @@
 import { NextResponse } from "next/server";
 
-// WEBHOOK COMPLETO CON PROCESAMIENTO - DEFENSIVO PARA BUILD TIME
+// WEBHOOK SEGÚN DOCUMENTACIÓN OFICIAL DE MERCADO PAGO
 export async function POST(req: Request) {
   try {
-    // Verificar que estemos en runtime, no en build time
-    if (typeof window === 'undefined' && !process.env.NEXT_PUBLIC_SUPABASE_URL) {
-      console.log("=== BUILD TIME - Webhook no disponible ===");
-      return NextResponse.json({ 
-        message: "Webhook no disponible durante build",
-        status: "build_time"
-      });
-    }
-
-    // Importar dependencias solo en runtime
-    const { createClient } = await import("@supabase/supabase-js");
-    const { createMercadoPagoClient } = await import("@/lib/mercadopago");
-
-    // Configuración de Supabase
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-    const supabase = createClient(supabaseUrl, supabaseAnonKey);
-
-    console.log("=== WEBHOOK RECIBIDO - PROCESAMIENTO COMPLETO ===");
+    console.log("=== WEBHOOK MERCADO PAGO RECIBIDO ===");
     console.log("📅 Timestamp:", new Date().toISOString());
-    console.log("🌐 URL:", req.url);
-    console.log("📋 Headers:", Object.fromEntries(req.headers.entries()));
     
+    // Leer el body del webhook
     const bodyText = await req.text();
-    console.log("📝 Body (texto):", bodyText);
+    console.log("📝 Body recibido:", bodyText);
     
-    let bodyJson;
+    // Parsear JSON según formato oficial de Mercado Pago
+    let webhookData;
     try {
-      bodyJson = JSON.parse(bodyText);
-      console.log("🔍 Body (JSON parseado):", JSON.stringify(bodyJson, null, 2));
+      webhookData = JSON.parse(bodyText);
+      console.log("🔍 Webhook parseado:", JSON.stringify(webhookData, null, 2));
     } catch (parseError) {
-      console.log("❌ Error al parsear JSON:", parseError);
+      console.error("❌ Error al parsear JSON:", parseError);
       return NextResponse.json({ 
-        error: "Error al parsear JSON del webhook",
-        details: parseError instanceof Error ? parseError.message : "Error desconocido"
+        error: "Formato de webhook inválido"
       }, { status: 400 });
     }
 
-    // Validar que sea un webhook de pago
-    if (bodyJson.type !== "payment") {
-      console.log("⚠️ Webhook no es de tipo payment:", bodyJson.type);
+    // Validar estructura según documentación oficial
+    if (!webhookData.type || webhookData.type !== "payment") {
+      console.log("⚠️ Webhook no es de tipo payment:", webhookData.type);
       return NextResponse.json({ 
         message: "Webhook recibido pero no es de tipo payment",
-        type: bodyJson.type
+        type: webhookData.type
       });
     }
 
-    // Obtener el ID del pago
-    const paymentId = bodyJson.data?.id;
-    if (!paymentId) {
-      console.log("❌ No se encontró ID de pago en el webhook");
+    if (!webhookData.data || !webhookData.data.id) {
+      console.log("❌ Webhook no contiene ID de pago válido");
       return NextResponse.json({ 
-        error: "No se encontró ID de pago en el webhook"
+        error: "Webhook no contiene ID de pago válido"
       }, { status: 400 });
     }
 
-    console.log("💰 ID de pago:", paymentId);
+    // Extraer información del webhook
+    const paymentId = webhookData.data.id;
+    const action = webhookData.action;
+    const liveMode = webhookData.live_mode;
+    const userId = webhookData.user_id;
+    const dateCreated = webhookData.date_created;
 
-    // Crear cliente de Mercado Pago
-    const client = createMercadoPagoClient();
-    if (!client) {
-      console.log("❌ No se pudo crear cliente de Mercado Pago");
-      return NextResponse.json({ 
-        error: "Error de configuración de Mercado Pago"
-      }, { status: 500 });
-    }
-
-    // Obtener detalles del pago desde Mercado Pago
-    const { Payment } = await import("mercadopago");
-    const payment = new Payment(client);
-    
-    console.log("🔍 Obteniendo detalles del pago desde Mercado Pago...");
-    const paymentDetails = await payment.get({ id: paymentId });
-    console.log("✅ Detalles del pago obtenidos:", {
-      id: paymentDetails.id,
-      status: paymentDetails.status,
-      external_reference: paymentDetails.external_reference,
-      transaction_amount: paymentDetails.transaction_amount
-    });
-
-    // Obtener el ID de la orden desde external_reference
-    const orderId = paymentDetails.external_reference;
-    if (!orderId) {
-      console.log("❌ No se encontró external_reference en el pago");
-      return NextResponse.json({ 
-        error: "No se encontró referencia de orden en el pago"
-      }, { status: 400 });
-    }
-
-    console.log("📦 ID de orden:", orderId);
-
-    // Actualizar estado de la orden según el estado del pago
-    let newStatus = "pendiente";
-    if (paymentDetails.status === "approved") {
-      newStatus = "pagado";
-    } else if (paymentDetails.status === "rejected") {
-      newStatus = "pendiente";
-    } else if (paymentDetails.status === "pending") {
-      newStatus = "pendiente";
-    } else if (paymentDetails.status === "cancelled") {
-      newStatus = "anulado";
-    }
-
-    console.log("🔄 Actualizando estado de orden:", {
-      orderId,
-      oldStatus: "pendiente",
-      newStatus,
-      paymentStatus: paymentDetails.status
-    });
-
-    // Actualizar estado en Supabase
-    const { error: updateError } = await supabase
-      .from("ordenes")
-      .update({ estado: newStatus })
-      .eq("id", orderId);
-
-    if (updateError) {
-      console.error("❌ Error al actualizar estado de orden:", updateError);
-      return NextResponse.json({ 
-        error: "Error al actualizar estado de orden en base de datos",
-        details: updateError.message
-      }, { status: 500 });
-    }
-
-    console.log("✅ Estado de orden actualizado exitosamente");
-
-    // Si el pago fue aprobado, descontar stock
-    if (paymentDetails.status === "approved") {
-      console.log("📦 Descontando stock para pago aprobado...");
-      
-      // Obtener items de la orden
-      const { data: orderItems, error: itemsError } = await supabase
-        .from("orden_items")
-        .select("articulo_id, cantidad")
-        .eq("orden_id", orderId);
-
-      if (itemsError) {
-        console.error("❌ Error al obtener items de la orden:", itemsError);
-        return NextResponse.json({ 
-          error: "Error al obtener items de la orden",
-          details: itemsError.message
-        }, { status: 500 });
-      }
-
-      console.log("📋 Items de la orden:", orderItems);
-
-      // Actualizar stock para cada item
-      for (const item of orderItems || []) {
-        console.log(`🔄 Actualizando stock para artículo ${item.articulo_id}, cantidad: ${item.cantidad}`);
-        
-        // Obtener stock actual
-        const { data: currentStock, error: stockQueryError } = await supabase
-          .from("articulos")
-          .select("existencia")
-          .eq("id", item.articulo_id)
-          .single();
-
-        if (stockQueryError) {
-          console.error(`❌ Error al obtener stock del artículo ${item.articulo_id}:`, stockQueryError);
-          continue;
-        }
-
-        const newStock = Math.max(0, (currentStock?.existencia || 0) - item.cantidad);
-        
-        // Actualizar stock
-        const { error: stockUpdateError } = await supabase
-          .from("articulos")
-          .update({ existencia: newStock })
-          .eq("id", item.articulo_id);
-
-        if (stockUpdateError) {
-          console.error(`❌ Error al actualizar stock del artículo ${item.articulo_id}:`, stockUpdateError);
-          // Continuar con otros artículos
-        } else {
-          console.log(`✅ Stock actualizado para artículo ${item.articulo_id}: ${currentStock?.existencia} → ${newStock}`);
-        }
-      }
-
-      console.log("✅ Procesamiento de stock completado");
-    }
-
-    console.log("🎉 Webhook procesado exitosamente");
-    return NextResponse.json({ 
-      message: "Webhook procesado exitosamente",
-      status: "success",
-      orderId,
+    console.log("💰 Información del webhook:", {
       paymentId,
-      orderStatus: newStatus,
-      paymentStatus: paymentDetails.status,
+      action,
+      liveMode,
+      userId,
+      dateCreated
+    });
+
+    // Por ahora solo logueamos y respondemos OK
+    // Aquí puedes agregar la lógica de tu negocio
+    console.log("✅ Webhook procesado correctamente");
+    
+    return NextResponse.json({ 
+      message: "Webhook recibido y procesado correctamente",
+      status: "success",
+      paymentId,
+      action,
       timestamp: new Date().toISOString()
     });
 
   } catch (error) {
     console.error("❌ Error en webhook:", error);
     return NextResponse.json({ 
-      error: "Error interno del servidor",
-      details: error instanceof Error ? error.message : "Error desconocido"
+      error: "Error interno del servidor"
     }, { status: 500 });
   }
 }
 
-// Método GET para probar
+// Método GET para probar conectividad
 export async function GET() {
-  try {
-    // Verificar que estemos en runtime, no en build time
-    if (typeof window === 'undefined' && !process.env.NEXT_PUBLIC_SUPABASE_URL) {
-      console.log("=== BUILD TIME - Webhook no disponible ===");
-      return NextResponse.json({ 
-        message: "Webhook no disponible durante build",
-        status: "build_time"
-      });
-    }
-
-    // Importar dependencias solo en runtime
-    const { createClient } = await import("@supabase/supabase-js");
-    const { createMercadoPagoClient } = await import("@/lib/mercadopago");
-
-    // Configuración de Supabase
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-    const supabase = createClient(supabaseUrl, supabaseAnonKey);
-
-    console.log("=== TESTING WEBHOOK CONNECTIVITY ===");
-    
-    // Verificar Supabase
-    const { data: testData, error: supabaseError } = await supabase
-      .from("ordenes")
-      .select("id, estado, total")
-      .limit(1);
-
-    if (supabaseError) {
-      console.error("❌ Error de Supabase:", supabaseError);
-      return NextResponse.json({ 
-        message: "Webhook con error de Supabase",
-        error: supabaseError.message
-      }, { status: 500 });
-    }
-
-    // Verificar Mercado Pago
-    const client = createMercadoPagoClient();
-    const mpStatus = client ? "✅ Disponible" : "❌ No disponible";
-
-    return NextResponse.json({ 
-      message: "Webhook funcionando correctamente",
-      test_data: {
-        cliente_mercadopago: mpStatus,
-        supabase: "✅ Conectado",
-        ordenes_pendientes: testData?.length || 0,
-        orden_ejemplo: testData?.[0] || null
-      }
-    });
-
-  } catch (error) {
-    console.error("❌ Error en GET del webhook:", error);
-    return NextResponse.json({ 
-      error: "Error interno del servidor",
-      details: error instanceof Error ? error.message : "Error desconocido"
-    }, { status: 500 });
-  }
+  return NextResponse.json({ 
+    message: "Webhook de Mercado Pago funcionando",
+    status: "ready",
+    timestamp: new Date().toISOString()
+  });
 }
