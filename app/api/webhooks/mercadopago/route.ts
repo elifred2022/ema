@@ -1,15 +1,26 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
-import { createMercadoPagoClient } from "@/lib/mercadopago";
 
-// Configuración de Supabase
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
-
-// WEBHOOK COMPLETO CON PROCESAMIENTO
+// WEBHOOK COMPLETO CON PROCESAMIENTO - DEFENSIVO PARA BUILD TIME
 export async function POST(req: Request) {
   try {
+    // Verificar que estemos en runtime, no en build time
+    if (typeof window === 'undefined' && !process.env.NEXT_PUBLIC_SUPABASE_URL) {
+      console.log("=== BUILD TIME - Webhook no disponible ===");
+      return NextResponse.json({ 
+        message: "Webhook no disponible durante build",
+        status: "build_time"
+      });
+    }
+
+    // Importar dependencias solo en runtime
+    const { createClient } = await import("@supabase/supabase-js");
+    const { createMercadoPagoClient } = await import("@/lib/mercadopago");
+
+    // Configuración de Supabase
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+    const supabase = createClient(supabaseUrl, supabaseAnonKey);
+
     console.log("=== WEBHOOK RECIBIDO - PROCESAMIENTO COMPLETO ===");
     console.log("📅 Timestamp:", new Date().toISOString());
     console.log("🌐 URL:", req.url);
@@ -196,6 +207,24 @@ export async function POST(req: Request) {
 // Método GET para probar
 export async function GET() {
   try {
+    // Verificar que estemos en runtime, no en build time
+    if (typeof window === 'undefined' && !process.env.NEXT_PUBLIC_SUPABASE_URL) {
+      console.log("=== BUILD TIME - Webhook no disponible ===");
+      return NextResponse.json({ 
+        message: "Webhook no disponible durante build",
+        status: "build_time"
+      });
+    }
+
+    // Importar dependencias solo en runtime
+    const { createClient } = await import("@supabase/supabase-js");
+    const { createMercadoPagoClient } = await import("@/lib/mercadopago");
+
+    // Configuración de Supabase
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+    const supabase = createClient(supabaseUrl, supabaseAnonKey);
+
     console.log("=== TESTING WEBHOOK CONNECTIVITY ===");
     
     // Verificar Supabase
