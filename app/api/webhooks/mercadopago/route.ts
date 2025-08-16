@@ -24,28 +24,34 @@ export async function POST(req: NextRequest) {
     console.log("Tipo de notificación:", body.type);
     console.log("Data:", body.data);
 
-    // 3. Verificar si el tipo de notificación es un pago
-    if (body.type === "payment") {
-      const paymentId = body.data.id;
+         // 3. Verificar si el tipo de notificación es un pago
+     if (body.type === "payment") {
+       const paymentId = body.data.id;
 
-      // 4. Consultar los detalles del pago a la API de Mercado Pago
-      const paymentInstance = new Payment(client);
-      const paymentDetails = await paymentInstance.get({ id: paymentId });
+       // 4. Verificar que el cliente esté disponible
+       if (!client) {
+         console.error("Cliente de MercadoPago no disponible");
+         return NextResponse.json({ message: "MercadoPago client not available." }, { status: 500 });
+       }
 
-      // 5. Obtener la referencia externa (el ID de tu orden de Supabase)
-      const orderId = paymentDetails.external_reference;
-      
-      // 6. Si no hay ID de orden, no podemos continuar
-      if (!orderId) {
-        console.error("ID de orden no encontrado en el pago.");
-        return NextResponse.json({ message: "No order ID found." }, { status: 400 });
-      }
+       // 5. Consultar los detalles del pago a la API de Mercado Pago
+       const paymentInstance = new Payment(client);
+       const paymentDetails = await paymentInstance.get({ id: paymentId });
 
-      // 7. Conectar con Supabase del lado del servidor
-      // ✅ Corregido: Usar 'await' para resolver la promesa
-      const supabase = await createClient();
+             // 6. Obtener la referencia externa (el ID de tu orden de Supabase)
+       const orderId = paymentDetails.external_reference;
+       
+       // 7. Si no hay ID de orden, no podemos continuar
+       if (!orderId) {
+         console.error("ID de orden no encontrado en el pago.");
+         return NextResponse.json({ message: "No order ID found." }, { status: 400 });
+       }
 
-      // 8. Actualizar el estado de la orden según el estado del pago
+       // 8. Conectar con Supabase del lado del servidor
+       // ✅ Corregido: Usar 'await' para resolver la promesa
+       const supabase = await createClient();
+
+       // 9. Actualizar el estado de la orden según el estado del pago
       let newStatus = "";
       switch (paymentDetails.status) {
         case "approved":
