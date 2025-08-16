@@ -4,8 +4,8 @@ import { createMercadoPagoClient } from "@/lib/mercadopago";
 
 // Configuración de Supabase
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-const supabase = createClient(supabaseUrl, supabaseServiceKey);
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 // WEBHOOK COMPLETO CON PROCESAMIENTO
 export async function POST(req: Request) {
@@ -142,21 +142,31 @@ export async function POST(req: Request) {
       for (const item of orderItems || []) {
         console.log(`🔄 Actualizando stock para artículo ${item.articulo_id}, cantidad: ${item.cantidad}`);
         
-        const { error: stockError } = await supabase
+        // Obtener stock actual
+        const { data: currentStock, error: stockQueryError } = await supabase
           .from("articulos")
-          .update({ 
-            existencia: supabase.rpc('decrement_stock', { 
-              article_id: item.articulo_id, 
-              quantity: item.cantidad 
-            })
-          })
+          .select("existencia")
+          .eq("id", item.articulo_id)
+          .single();
+
+        if (stockQueryError) {
+          console.error(`❌ Error al obtener stock del artículo ${item.articulo_id}:`, stockQueryError);
+          continue;
+        }
+
+        const newStock = Math.max(0, (currentStock?.existencia || 0) - item.cantidad);
+        
+        // Actualizar stock
+        const { error: stockUpdateError } = await supabase
+          .from("articulos")
+          .update({ existencia: newStock })
           .eq("id", item.articulo_id);
 
-        if (stockError) {
-          console.error(`❌ Error al actualizar stock del artículo ${item.articulo_id}:`, stockError);
+        if (stockUpdateError) {
+          console.error(`❌ Error al actualizar stock del artículo ${item.articulo_id}:`, stockUpdateError);
           // Continuar con otros artículos
         } else {
-          console.log(`✅ Stock actualizado para artículo ${item.articulo_id}`);
+          console.log(`✅ Stock actualizado para artículo ${item.articulo_id}: ${currentStock?.existencia} → ${newStock}`);
         }
       }
 
