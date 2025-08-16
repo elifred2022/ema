@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 
 // Definir tipos para las estructuras de datos de la orden
 interface OrdenItem {
@@ -23,10 +23,12 @@ interface Orden {
 export default function CheckoutPage() {
   const supabase = createClient();
   const params = useParams();
+  const router = useRouter();
   const [orden, setOrden] = useState<Orden | null>(null);
   const [preferenceId, setPreferenceId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isAnulando, setIsAnulando] = useState(false);
 
   // 1. Obtener los detalles de la orden de Supabase
   useEffect(() => {
@@ -101,6 +103,46 @@ export default function CheckoutPage() {
     }
   };
 
+  // 3. Función para anular la compra
+  const anularCompra = async () => {
+    if (!orden) return;
+
+    if (!confirm("¿Estás seguro de que quieres anular esta compra? Esta acción no se puede deshacer.")) {
+      return;
+    }
+
+    setIsAnulando(true);
+    try {
+      // Actualizar el estado de la orden a "anulado"
+      const { error: updateError } = await supabase
+        .from("ordenes")
+        .update({ estado: "anulado" })
+        .eq("id", orden.id);
+
+      if (updateError) {
+        console.error("Error al anular la orden:", updateError);
+        alert("Error al anular la compra. Por favor, inténtalo de nuevo.");
+        return;
+      }
+
+      // Actualizar el estado local
+      setOrden(prev => prev ? { ...prev, estado: "anulado" } : null);
+      
+      alert("✅ Compra anulada exitosamente");
+      
+      // Redirigir a home después de anular
+      setTimeout(() => {
+        router.push('/');
+      }, 1500);
+
+    } catch (error) {
+      console.error("Error al anular la compra:", error);
+      alert("Error al anular la compra. Por favor, inténtalo de nuevo.");
+    } finally {
+      setIsAnulando(false);
+    }
+  };
+
   if (error) {
     return (
       <div className="p-4 max-w-lg mx-auto bg-red-50 rounded-lg shadow-md mt-8">
@@ -129,9 +171,38 @@ export default function CheckoutPage() {
     );
   }
 
+  // Si la orden ya está anulada, mostrar mensaje
+  if (orden.estado === "anulado") {
+    return (
+      <div className="p-4 max-w-lg mx-auto bg-gray-50 rounded-lg shadow-md mt-8">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold text-gray-600 mb-4">Compra Anulada</h2>
+          <p className="text-gray-700 mb-6">Esta compra ha sido anulada.</p>
+          <button
+            onClick={() => router.push('/')}
+            className="bg-blue-600 text-white font-bold py-2 px-6 rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            Volver a la tienda
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="p-4 max-w-lg mx-auto bg-gray-50 rounded-lg shadow-md mt-8">
       <h1 className="text-3xl font-bold mb-6 text-center text-gray-800">Resumen de la Orden</h1>
+
+      {/* Estado de la orden */}
+      <div className="mb-6 p-3 rounded-lg text-center">
+        <span className={`inline-block px-3 py-1 rounded-full text-sm font-semibold ${
+          orden.estado === "pendiente" ? "bg-yellow-100 text-yellow-800" :
+          orden.estado === "pagado" ? "bg-green-100 text-green-800" :
+          "bg-gray-100 text-gray-800"
+        }`}>
+          Estado: {orden.estado.toUpperCase()}
+        </span>
+      </div>
 
       <ul className="mb-6">
         {orden.orden_items.map((item) => (
@@ -158,6 +229,16 @@ export default function CheckoutPage() {
           >
             {isLoading ? "Creando pago..." : "Pagar con Mercado Pago"}
           </button>
+          
+          {/* Botón de anular compra */}
+          <button
+            className="w-full bg-red-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-red-700 transition-colors disabled:bg-gray-400"
+            onClick={anularCompra}
+            disabled={isAnulando || orden.estado !== "pendiente"}
+          >
+            {isAnulando ? "Anulando..." : "❌ Anular Compra"}
+          </button>
+          
           <p className="text-sm text-gray-600 text-center">
             Serás redirigido a MercadoPago para completar tu pago de forma segura
           </p>
@@ -187,6 +268,16 @@ export default function CheckoutPage() {
               >
                 🚀 Ir a MercadoPago
               </button>
+              
+              {/* Botón de anular compra (también disponible después de crear preferencia) */}
+              <button
+                className="w-full bg-red-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-red-700 transition-colors"
+                onClick={anularCompra}
+                disabled={isAnulando}
+              >
+                {isAnulando ? "Anulando..." : "❌ Anular Compra"}
+              </button>
+              
               <p className="text-sm text-gray-600">
                 Haz clic para ir a MercadoPago y completar tu pago
               </p>

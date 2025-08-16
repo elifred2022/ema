@@ -23,7 +23,18 @@ export default function ConfirmarCompra() {
         return;
       }
 
-      // 2️⃣ Crear orden
+      // 2️⃣ Validar stock disponible antes de crear la orden
+      console.log("🔍 Validando stock disponible...");
+      const stockValidation = await validateStock(carrito, supabase);
+      
+      if (!stockValidation.isValid) {
+        alert(`❌ No hay stock suficiente para: ${stockValidation.invalidItems.join(", ")}`);
+        return;
+      }
+      
+      console.log("✅ Stock validado correctamente");
+
+      // 3️⃣ Crear orden
       const { data: orden, error: errOrden } = await supabase
         .from("ordenes")
         .insert([
@@ -42,7 +53,7 @@ export default function ConfirmarCompra() {
         return;
       }
 
-      // 3️⃣ Insertar items de la orden
+      // 4️⃣ Insertar items de la orden
       const itemsData = carrito.map(item => ({
         orden_id: orden.id,
         articulo_id: item.id,               // 👈 ahora integer
@@ -62,14 +73,57 @@ export default function ConfirmarCompra() {
         return;
       }
 
-      // 4️⃣ Vaciar carrito y redirigir al checkout
+      // 5️⃣ Vaciar carrito y redirigir al checkout
       limpiarCarrito();
       router.push(`/checkout/${orden.id}`);
-
 
     } catch (e) {
       console.error("Error inesperado:", e);
       alert("Ocurrió un error inesperado. Revisa la consola.");
+    }
+  };
+
+  // Función para validar stock disponible
+  const validateStock = async (carritoItems: any[], supabaseClient: any) => {
+    try {
+      const invalidItems: string[] = [];
+      
+      for (const item of carritoItems) {
+        // Obtener stock actual del artículo
+        const { data: articulo, error } = await supabaseClient
+          .from("articulos")
+          .select("existencia, nombre_articulo")
+          .eq("id", item.id)
+          .single();
+
+        if (error) {
+          console.error(`Error al obtener stock del artículo ${item.id}:`, error);
+          invalidItems.push(item.nombre_articulo);
+          continue;
+        }
+
+        if (articulo) {
+          const stockDisponible = Number(articulo.existencia) || 0;
+          const cantidadSolicitada = item.cantidad;
+
+          console.log(`📦 ${articulo.nombre_articulo}: Stock ${stockDisponible}, Solicitado ${cantidadSolicitada}`);
+
+          if (stockDisponible < cantidadSolicitada) {
+            invalidItems.push(`${articulo.nombre_articulo} (Stock: ${stockDisponible}, Solicitado: ${cantidadSolicitada})`);
+          }
+        }
+      }
+
+      return {
+        isValid: invalidItems.length === 0,
+        invalidItems
+      };
+    } catch (error) {
+      console.error("Error durante validación de stock:", error);
+      return {
+        isValid: false,
+        invalidItems: ["Error al validar stock"]
+      };
     }
   };
 

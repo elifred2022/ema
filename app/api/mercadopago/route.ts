@@ -13,8 +13,11 @@ function createSafeClient() {
     }
     
     console.log("=== DEBUG createSafeClient ===");
+    console.log("process.env.MP_ACCESS_TOKEN existe:", !!process.env.MP_ACCESS_TOKEN);
+    console.log("process.env.MP_ACCESS_TOKEN (primeros 20 chars):", process.env.MP_ACCESS_TOKEN ? `${process.env.MP_ACCESS_TOKEN.substring(0, 20)}...` : "No disponible");
     console.log("mercadopagoConfig.accessToken:", mercadopagoConfig.accessToken);
     console.log("mercadopagoConfig.publicKey:", mercadopagoConfig.publicKey);
+    console.log("NODE_ENV:", process.env.NODE_ENV);
     
     const configValidation = validateConfig();
     console.log("configValidation:", configValidation);
@@ -145,17 +148,20 @@ export async function GET() {
       );
     }
 
-    return NextResponse.json({
-      status: "ok",
-      message: "API de MercadoPago funcionando correctamente",
-      config: {
-        hasAccessToken: !!mercadopagoConfig.accessToken,
-        hasPublicKey: !!mercadopagoConfig.publicKey,
-        baseUrl: mercadopagoConfig.baseUrl,
-        currency: mercadopagoConfig.currency,
-        locale: mercadopagoConfig.locale
-      }
-    });
+         return NextResponse.json({
+       status: "ok",
+       message: "API de MercadoPago funcionando correctamente",
+       config: {
+         hasAccessToken: !!mercadopagoConfig.accessToken,
+         hasPublicKey: !!mercadopagoConfig.publicKey,
+         baseUrl: mercadopagoConfig.baseUrl,
+         currency: mercadopagoConfig.currency,
+         locale: mercadopagoConfig.locale,
+         nodeEnv: process.env.NODE_ENV,
+         accessTokenExists: !!process.env.MP_ACCESS_TOKEN,
+         accessTokenPreview: process.env.MP_ACCESS_TOKEN ? `${process.env.MP_ACCESS_TOKEN.substring(0, 20)}...` : "No disponible"
+       }
+     });
   } catch (error) {
     console.error("Error en GET /api/mercadopago:", error);
     return NextResponse.json(

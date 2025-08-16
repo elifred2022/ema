@@ -3,10 +3,8 @@ import { EnvVarWarning } from "@/components/env-var-warning";
 import { AuthButton } from "@/components/auth-button";
 import { Hero } from "@/components/hero";
 import { ThemeSwitcher } from "@/components/theme-switcher";
-import MercadoPagoTest from "@/components/mercadopago-test";
 
 import { hasEnvVars } from "@/lib/utils";
-
 
 export default function Home() {
   return (
@@ -24,7 +22,6 @@ export default function Home() {
       <div className="flex-1 w-full flex flex-col items-center">
         <section className="w-full max-w-7xl flex-1 flex flex-col gap-20 px-8 py-12">
           <Hero />
-          <MercadoPagoTest />
         </section>
       </div>
 
