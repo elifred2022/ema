@@ -1,8 +1,7 @@
 import { NextResponse } from "next/server";
-import type { NextRequest } from "next/server";
 
 // WEBHOOK ULTRA-SIMPLE - SOLO PARA DIAGNÓSTICO
-export async function POST(req: NextRequest) {
+export async function POST() {
   try {
     console.log("=== WEBHOOK SIMPLE RECIBIDO ===");
     
