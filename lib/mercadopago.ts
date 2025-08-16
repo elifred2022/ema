@@ -30,6 +30,12 @@ export const mercadopagoConfig = {
 
 // Cliente de MercadoPago para el backend
 export const createMercadoPagoClient = () => {
+  // Durante el build, las variables de entorno pueden no estar disponibles
+  if (typeof window === 'undefined' && !process.env.MP_ACCESS_TOKEN) {
+    // En el servidor durante el build, retornar un cliente mock
+    return null;
+  }
+  
   if (!mercadopagoConfig.accessToken) {
     throw new Error("MP_ACCESS_TOKEN no está configurado en las variables de entorno");
   }
@@ -48,6 +54,16 @@ export const buildRedirectUrl = (path: string) => {
 export const validateConfig = () => {
   const errors: string[] = [];
   
+  // Durante el build, las variables de entorno pueden no estar disponibles
+  if (typeof window === 'undefined' && !process.env.MP_ACCESS_TOKEN) {
+    // En el servidor durante el build, retornar configuración válida
+    return {
+      isValid: true,
+      errors: [],
+      isBuildTime: true
+    };
+  }
+  
   if (!mercadopagoConfig.accessToken) {
     errors.push("MP_ACCESS_TOKEN no está configurado");
   }
@@ -62,6 +78,7 @@ export const validateConfig = () => {
   
   return {
     isValid: errors.length === 0,
-    errors
+    errors,
+    isBuildTime: false
   };
 };

@@ -6,6 +6,12 @@ import { createMercadoPagoClient, buildRedirectUrl, mercadopagoConfig, validateC
 // Función para crear el cliente de MercadoPago de forma segura
 function createSafeClient() {
   try {
+    // Durante el build, las variables de entorno pueden no estar disponibles
+    if (typeof window === 'undefined' && !process.env.MP_ACCESS_TOKEN) {
+      console.log("=== BUILD TIME - Cliente no disponible ===");
+      return null;
+    }
+    
     console.log("=== DEBUG createSafeClient ===");
     console.log("mercadopagoConfig.accessToken:", mercadopagoConfig.accessToken);
     console.log("mercadopagoConfig.publicKey:", mercadopagoConfig.publicKey);

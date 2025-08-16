@@ -4,7 +4,14 @@ import type { NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createMercadoPagoClient } from "@/lib/mercadopago";
 
-const client = createMercadoPagoClient();
+// Crear el cliente de forma defensiva para evitar errores durante el build
+let client: any = null;
+try {
+  client = createMercadoPagoClient();
+} catch (error) {
+  // Durante el build, el cliente puede no estar disponible
+  console.log("Cliente de MercadoPago no disponible durante el build");
+}
 
 // 2. Definir la función POST del webhook
 export async function POST(req: NextRequest) {

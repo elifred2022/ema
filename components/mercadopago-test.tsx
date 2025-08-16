@@ -21,17 +21,17 @@ export default function MercadoPagoTest() {
       const response = await fetch("/api/mercadopago", { method: "GET" });
       const data = await response.json();
       
-      if (response.ok) {
-        setTestResult("✅ Configuración válida - API respondiendo correctamente");
-        setConfigStatus({ isValid: true, errors: [] });
-      } else {
-        setTestResult(`❌ Error en configuración: ${data.message}`);
-        setConfigStatus({ isValid: false, errors: data.details || [data.message] });
-      }
-    } catch (error) {
-      setTestResult(`❌ Error de conexión: ${error instanceof Error ? error.message : "Error desconocido"}`);
-      setConfigStatus({ isValid: false, errors: ["Error de conexión"] });
-    }
+             if (response.ok) {
+         setTestResult("✅ Configuración válida - API respondiendo correctamente");
+         setConfigStatus({ isValid: true, errors: [], isBuildTime: false });
+       } else {
+         setTestResult(`❌ Error en configuración: ${data.message}`);
+         setConfigStatus({ isValid: false, errors: data.details || [data.message], isBuildTime: false });
+       }
+     } catch (error) {
+       setTestResult(`❌ Error de conexión: ${error instanceof Error ? error.message : "Error desconocido"}`);
+       setConfigStatus({ isValid: false, errors: ["Error de conexión"], isBuildTime: false });
+     }
   };
 
   const testAPI = async () => {
@@ -105,24 +105,31 @@ export default function MercadoPagoTest() {
             Verificar Configuración
           </button>
           
-          {configStatus && (
-            <div className={`mt-2 p-3 rounded-lg ${
-              configStatus.isValid ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-            }`}>
-              {configStatus.isValid ? (
-                <p>✅ Configuración válida</p>
-              ) : (
-                <div>
-                  <p>❌ Errores de configuración:</p>
-                  <ul className="list-disc list-inside mt-1">
-                    {configStatus.errors.map((error, index) => (
-                      <li key={index}>{error}</li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-            </div>
-          )}
+                     {configStatus && (
+             <div className={`mt-2 p-3 rounded-lg ${
+               configStatus.isValid ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+             }`}>
+               {configStatus.isValid ? (
+                 <div>
+                   <p>✅ Configuración válida</p>
+                   {configStatus.isBuildTime && (
+                     <p className="text-xs text-green-600 mt-1">
+                       (Modo build - variables de entorno no verificadas)
+                     </p>
+                   )}
+                 </div>
+               ) : (
+                 <div>
+                   <p>❌ Errores de configuración:</p>
+                   <ul className="list-disc list-inside mt-1">
+                     {configStatus.errors.map((error, index) => (
+                       <li key={index}>{error}</li>
+                     ))}
+                   </ul>
+                 </div>
+               )}
+             </div>
+           )}
         </div>
 
         <div>
