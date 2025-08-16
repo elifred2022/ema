@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useParams } from "next/navigation";
-import { mercadopagoConfig } from "@/lib/mercadopago";
 
 // Definir tipos para las estructuras de datos de la orden
 interface OrdenItem {
