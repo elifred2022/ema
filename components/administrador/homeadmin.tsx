@@ -1,6 +1,8 @@
 "use client";
 
 import Link from "next/link";
+import { Package } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 
 
@@ -9,27 +11,20 @@ function HomeAdmin() {
 
 
   return (
-    <div className="p-4 space-y-4">
-      <h1>Administrador</h1>
-        <div className="flex flex-wrap gap-4 items-center" >
-
-          <Link
-              href="/auth/rut-articulos/list-articulos"
-              className="inline-block px-4 py-2 mb-4 bg-white text-black font-semibold rounded-md shadow hover:bg-blue-700 transition-colors duration-200"
-            >
-              Seccion Articulos
-            </Link>  
+    <div className="p-4 space-y-6">
+      <h1 className="text-3xl font-bold text-gray-800 dark:text-gray-200">Administrador</h1>
+      <div className="flex flex-wrap gap-4 items-center">
+        <Link href="/auth/rut-articulos/list-articulos">
+          <Button 
+            size="lg"
+            className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-semibold px-6 py-6 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 flex items-center gap-3"
+          >
+            <Package className="h-5 w-5" />
+            Sección Artículos
+          </Button>
+        </Link>  
            
-        
-
-            
-           
-       </div>
-      <div className="flex gap-4 items-center">
-       
       </div>
-
-     
     </div>
   );
 }
