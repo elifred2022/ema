@@ -1,6 +1,6 @@
 
 import Link from "next/link";
-import { Package, ShoppingBag, Users, Settings } from "lucide-react";
+import { Package, ShoppingBag, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export function Hero() {
