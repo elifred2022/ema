@@ -25,6 +25,18 @@ function HomeAdmin() {
         </Link>  
            
       </div>
+      <div className="flex flex-wrap gap-4 items-center">
+        <Link href="/auth/rut-clientes/lista-clientes">
+          <Button 
+            size="lg"
+            className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-semibold px-6 py-6 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 flex items-center gap-3"
+          >
+            <Package className="h-5 w-5" />
+            Sección Clientes
+          </Button>
+        </Link>  
+           
+      </div>
     </div>
   );
 }
