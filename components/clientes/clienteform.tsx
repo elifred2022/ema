@@ -20,12 +20,38 @@ export default function FormCliente({ modoNuevo = false, redirectTo }: FormClien
   const [email, setEmail] = useState("");
   const [userId, setUserId] = useState("");
   const [cargando, setCargando] = useState(true);
+  const [clienteId, setClienteId] = useState<number | null>(null);
   
   // Detectar si es modo nuevo desde URL
   const esModoNuevo = modoNuevo || searchParams.get("nuevo") === "true";
+  // Detectar si hay un ID de cliente para editar
+  const idClienteParam = searchParams.get("id");
 
   useEffect(() => {
     const cargarDatos = async () => {
+      // Si hay un ID de cliente en la URL, cargar ese cliente específico
+      if (idClienteParam) {
+        const id = parseInt(idClienteParam);
+        if (!isNaN(id)) {
+          setClienteId(id);
+          const { data, error } = await supabase
+            .from("clientes")
+            .select("id, nombre, direccion, telefono, email, user_id")
+            .eq("id", id)
+            .single();
+
+          if (data && !error) {
+            setNombre(data.nombre || "");
+            setDireccion(data.direccion || "");
+            setTelefono(data.telefono || "");
+            setEmail(data.email || "");
+            setUserId(data.user_id || "");
+            setCargando(false);
+            return;
+          }
+        }
+      }
+
       // Siempre obtener el usuario autenticado
       const {
         data: { user },
@@ -67,10 +93,26 @@ export default function FormCliente({ modoNuevo = false, redirectTo }: FormClien
     };
 
     cargarDatos();
-  }, [supabase, esModoNuevo]);
+  }, [supabase, esModoNuevo, idClienteParam]);
 
   const guardarCliente = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Si hay un clienteId, actualizar ese cliente específico
+    if (clienteId) {
+      const { error } = await supabase
+        .from("clientes")
+        .update({ nombre, direccion, telefono, email })
+        .eq("id", clienteId);
+
+      if (error) {
+        alert("Error al actualizar el cliente: " + error.message);
+        return;
+      }
+
+      router.push(redirectTo || "/auth/rut-clientes/lista-clientes");
+      return;
+    }
 
     if (esModoNuevo) {
       // Crear nuevo cliente con el user_id del usuario que lo está creando
@@ -125,7 +167,7 @@ export default function FormCliente({ modoNuevo = false, redirectTo }: FormClien
       className="max-w-md mx-auto p-4 bg-white shadow-md rounded-lg space-y-4"
     >
       <h2 className="text-xl font-bold">
-        {esModoNuevo ? "Agregar Nuevo Cliente" : "Datos del Cliente"}
+        {clienteId ? "Editar Cliente" : esModoNuevo ? "Agregar Nuevo Cliente" : "Datos del Cliente"}
       </h2>
 
       <div>
@@ -161,16 +203,16 @@ export default function FormCliente({ modoNuevo = false, redirectTo }: FormClien
         />
       </div>
 
-      {/* Campo email editable en modo nuevo */}
+      {/* Campo email editable en modo nuevo o edición por ID */}
       <div>
         <label className="block font-medium">Email</label>
         <input
           type="email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          readOnly={!esModoNuevo}
-          required={esModoNuevo}
-          className={`border p-2 w-full rounded ${esModoNuevo ? "" : "bg-gray-100"}`}
+          readOnly={!esModoNuevo && !clienteId}
+          required={esModoNuevo || !!clienteId}
+          className={`border p-2 w-full rounded ${!esModoNuevo && !clienteId ? "bg-gray-100" : ""}`}
         />
       </div>
 
