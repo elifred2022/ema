@@ -5,7 +5,10 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "setup-mercadopago": "node setup-mercadopago.js"
+    "setup-mercadopago": "node setup-mercadopago.js",
+    "deploy": "vercel --prod",
+    "deploy:preview": "vercel",
+    "deploy:build": "npm run build && npm run deploy"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.71.2",
