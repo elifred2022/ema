@@ -10,20 +10,20 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Plus, Trash2, Loader2, Save, ArrowLeft, Search } from "lucide-react";
 import Link from "next/link";
 
-type ItemCompra = {
+type ItemVenta = {
   id?: string; // ID único para React key
   codint: string;
   nombre_articulo: string;
   descripcion: string;
   familia: string;
   cant: number;
-  costo_compra: string;
+  precio_venta: string;
   articulo_id?: string; // ID del artículo en la tabla articulos
 };
 
-type Proveedor = {
+type Cliente = {
   id: number;
-  proveedor: string;
+  nombre: string;
 };
 
 type Articulo = {
@@ -32,47 +32,47 @@ type Articulo = {
   nombre_articulo: string;
   descripcion: string;
   familia: string;
-  costo_compra: string;
+  precio_venta: string;
   existencia: string;
 };
 
-export default function CompraForm() {
+export default function VentasForm() {
   const supabase = createClient();
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  const [proveedor, setProveedor] = useState("");
-  const [proveedores, setProveedores] = useState<Proveedor[]>([]);
+  const [cliente, setCliente] = useState("");
+  const [clientes, setClientes] = useState<Cliente[]>([]);
   const [articulos, setArticulos] = useState<Articulo[]>([]);
-  const [items, setItems] = useState<ItemCompra[]>([]);
+  const [items, setItems] = useState<ItemVenta[]>([]);
   const [cargando, setCargando] = useState(true);
   const [guardando, setGuardando] = useState(false);
-  const [compraId, setCompraId] = useState<number | null>(null);
+  const [ventaId, setVentaId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busquedaArticulo, setBusquedaArticulo] = useState("");
 
-  const idCompraParam = searchParams.get("id");
+  const idVentaParam = searchParams.get("id");
 
-  // Cargar proveedores, artículos y datos de compra si existe
+  // Cargar clientes, artículos y datos de venta si existe
   useEffect(() => {
     const cargarDatos = async () => {
       try {
-        // Cargar proveedores
-        const { data: proveedoresData, error: proveedoresError } = await supabase
-          .from("proveedores")
-          .select("id, proveedor")
-          .order("proveedor", { ascending: true });
+        // Cargar clientes
+        const { data: clientesData, error: clientesError } = await supabase
+          .from("clientes")
+          .select("id, nombre")
+          .order("nombre", { ascending: true });
 
-        if (proveedoresError) {
-          setError("Error al cargar proveedores: " + proveedoresError.message);
+        if (clientesError) {
+          setError("Error al cargar clientes: " + clientesError.message);
         } else {
-          setProveedores(proveedoresData || []);
+          setClientes(clientesData || []);
         }
 
         // Cargar artículos
         const { data: articulosData, error: articulosError } = await supabase
           .from("articulos")
-          .select("id, codint, nombre_articulo, descripcion, familia, costo_compra, existencia")
+          .select("id, codint, nombre_articulo, descripcion, familia, precio_venta, existencia")
           .order("nombre_articulo", { ascending: true });
 
         if (articulosError) {
@@ -81,25 +81,25 @@ export default function CompraForm() {
           setArticulos(articulosData || []);
         }
 
-        // Si hay un ID de compra, cargar datos para editar
-        if (idCompraParam) {
-          const id = parseInt(idCompraParam);
+        // Si hay un ID de venta, cargar datos para editar
+        if (idVentaParam) {
+          const id = parseInt(idVentaParam);
           if (!isNaN(id)) {
-            setCompraId(id);
-            const { data: compraData, error: compraError } = await supabase
-              .from("compras")
-              .select("id, proveedor, items, total")
+            setVentaId(id);
+            const { data: ventaData, error: ventaError } = await supabase
+              .from("ventas")
+              .select("id, cliente, items, total")
               .eq("id", id)
               .single();
 
-            if (compraData && !compraError) {
-              setProveedor(compraData.proveedor || "");
+            if (ventaData && !ventaError) {
+              setCliente(ventaData.cliente || "");
               // Parsear items si vienen como string JSON
-              const itemsParsed = typeof compraData.items === 'string' 
-                ? JSON.parse(compraData.items) 
-                : compraData.items;
+              const itemsParsed = typeof ventaData.items === 'string' 
+                ? JSON.parse(ventaData.items) 
+                : ventaData.items;
               // Agregar IDs únicos a los items si no los tienen
-              const itemsConIds = (itemsParsed || []).map((item: ItemCompra) => ({
+              const itemsConIds = (itemsParsed || []).map((item: ItemVenta) => ({
                 ...item,
                 id: item.id || `item-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
               }));
@@ -116,14 +116,14 @@ export default function CompraForm() {
     };
 
     cargarDatos();
-  }, [supabase, idCompraParam]);
+  }, [supabase, idVentaParam]);
 
   // Calcular total
   const calcularTotal = () => {
     return items.reduce((sum, item) => {
-      const costo = parseFloat(item.costo_compra) || 0;
+      const precio = parseFloat(item.precio_venta) || 0;
       const cantidad = item.cant || 0;
-      return sum + costo * cantidad;
+      return sum + precio * cantidad;
     }, 0);
   };
 
@@ -133,7 +133,7 @@ export default function CompraForm() {
   };
 
   // Actualizar item
-  const actualizarItem = (itemId: string, campo: keyof ItemCompra, valor: string | number) => {
+  const actualizarItem = (itemId: string, campo: keyof ItemVenta, valor: string | number) => {
     const nuevosItems = items.map((item) =>
       item.id === itemId ? { ...item, [campo]: valor } : item
     );
@@ -161,14 +161,14 @@ export default function CompraForm() {
       actualizarItem(existe.id!, "cant", (existe.cant || 1) + 1);
     } else {
       // Si no existe, agregarlo como nuevo item
-      const nuevoItem: ItemCompra = {
+      const nuevoItem: ItemVenta = {
         id: `item-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
         codint: articulo.codint,
         nombre_articulo: articulo.nombre_articulo,
         descripcion: articulo.descripcion || "",
         familia: articulo.familia || "",
         cant: 1,
-        costo_compra: articulo.costo_compra || "0.00",
+        precio_venta: articulo.precio_venta || "0.00",
         articulo_id: articulo.id,
       };
       setItems([...items, nuevoItem]);
@@ -177,12 +177,12 @@ export default function CompraForm() {
     setBusquedaArticulo("");
   };
 
-  // Guardar compra
-  const guardarCompra = async (e: React.FormEvent) => {
+  // Guardar venta
+  const guardarVenta = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!proveedor) {
-      alert("Por favor selecciona un proveedor");
+    if (!cliente) {
+      alert("Por favor selecciona un cliente");
       return;
     }
 
@@ -198,12 +198,29 @@ export default function CompraForm() {
         !item.nombre_articulo ||
         !item.familia ||
         item.cant <= 0 ||
-        parseFloat(item.costo_compra) <= 0
+        parseFloat(item.precio_venta) <= 0
     );
 
     if (itemsInvalidos) {
       alert("Por favor completa todos los campos de los artículos correctamente");
       return;
+    }
+
+    // Validar stock disponible antes de guardar
+    for (const item of items) {
+      if (item.articulo_id) {
+        const articuloActual = articulos.find((a) => a.id === item.articulo_id);
+        if (articuloActual) {
+          const existenciaActual = parseFloat(articuloActual.existencia) || 0;
+          const cantidadVenta = item.cant || 0;
+          if (cantidadVenta > existenciaActual) {
+            alert(
+              `No hay stock suficiente para "${item.nombre_articulo}". Stock disponible: ${existenciaActual}, Cantidad solicitada: ${cantidadVenta}`
+            );
+            return;
+          }
+        }
+      }
     }
 
     setGuardando(true);
@@ -215,52 +232,51 @@ export default function CompraForm() {
       // Limpiar el campo 'id' de los items antes de guardar (solo es para React)
       const itemsParaGuardar = items.map(({ id, ...item }) => item);
 
-      if (compraId) {
-        // Actualizar compra existente
+      if (ventaId) {
+        // Actualizar venta existente
         const { error: updateError } = await supabase
-          .from("compras")
+          .from("ventas")
           .update({
-            proveedor,
+            cliente,
             items: itemsParaGuardar,
             total,
           })
-          .eq("id", compraId);
+          .eq("id", ventaId);
 
         if (updateError) {
-          alert("Error al actualizar la compra: " + updateError.message);
+          alert("Error al actualizar la venta: " + updateError.message);
           setGuardando(false);
           return;
         }
       } else {
-        // Crear nueva compra (el ID se genera automáticamente en Supabase)
-        const { error: insertError } = await supabase.from("compras").insert({
-          proveedor,
+        // Crear nueva venta (el ID se genera automáticamente en Supabase)
+        const { error: insertError } = await supabase.from("ventas").insert({
+          cliente,
           items: itemsParaGuardar,
           total,
         });
 
         if (insertError) {
-          alert("Error al crear la compra: " + insertError.message);
+          alert("Error al crear la venta: " + insertError.message);
           setGuardando(false);
           return;
         }
 
-        // Actualizar stock de artículos solo para nuevas compras
+        // Actualizar stock de artículos solo para nuevas ventas (restar del stock)
         for (const item of items) {
           if (item.articulo_id) {
             // Buscar el artículo actual para obtener su existencia
             const articuloActual = articulos.find((a) => a.id === item.articulo_id);
             if (articuloActual) {
               const existenciaActual = parseFloat(articuloActual.existencia) || 0;
-              const cantidadComprada = item.cant || 0;
-              const nuevaExistencia = existenciaActual + cantidadComprada;
+              const cantidadVendida = item.cant || 0;
+              const nuevaExistencia = existenciaActual - cantidadVendida;
 
-              // Actualizar existencia y costo_compra en la tabla articulos
+              // Actualizar existencia en la tabla articulos
               const { error: updateStockError } = await supabase
                 .from("articulos")
                 .update({
                   existencia: nuevaExistencia.toString(),
-                  costo_compra: item.costo_compra,
                 })
                 .eq("id", item.articulo_id);
 
@@ -277,14 +293,13 @@ export default function CompraForm() {
             const articuloPorCodigo = articulos.find((a) => a.codint === item.codint);
             if (articuloPorCodigo) {
               const existenciaActual = parseFloat(articuloPorCodigo.existencia) || 0;
-              const cantidadComprada = item.cant || 0;
-              const nuevaExistencia = existenciaActual + cantidadComprada;
+              const cantidadVendida = item.cant || 0;
+              const nuevaExistencia = existenciaActual - cantidadVendida;
 
               const { error: updateStockError } = await supabase
                 .from("articulos")
                 .update({
                   existencia: nuevaExistencia.toString(),
-                  costo_compra: item.costo_compra,
                 })
                 .eq("codint", item.codint);
 
@@ -299,9 +314,9 @@ export default function CompraForm() {
         }
       }
 
-      router.push("/auth/rut-compras/lista-compras");
+      router.push("/auth/rut-ventas/lista-ventas");
     } catch (err) {
-      alert("Error inesperado al guardar la compra");
+      alert("Error inesperado al guardar la venta");
       console.error(err);
       setGuardando(false);
     }
@@ -325,9 +340,9 @@ export default function CompraForm() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <h2 className="text-3xl font-bold text-gray-800 dark:text-gray-200">
-          {compraId ? "Editar Compra" : "Nueva Compra"}
+          {ventaId ? "Editar Venta" : "Nueva Venta"}
         </h2>
-        <Link href="/auth/rut-compras/lista-compras">
+        <Link href="/auth/rut-ventas/lista-ventas">
           <Button variant="outline" className="flex items-center gap-2">
             <ArrowLeft className="h-4 w-4" />
             Volver
@@ -341,27 +356,27 @@ export default function CompraForm() {
         </div>
       )}
 
-      <form onSubmit={guardarCompra} className="space-y-6">
-        {/* Información del Proveedor */}
+      <form onSubmit={guardarVenta} className="space-y-6">
+        {/* Información del Cliente */}
         <Card>
           <CardHeader>
-            <CardTitle>Información del Proveedor</CardTitle>
+            <CardTitle>Información del Cliente</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="grid gap-4">
               <div className="grid gap-2">
-                <Label htmlFor="proveedor">Proveedor *</Label>
+                <Label htmlFor="cliente">Cliente *</Label>
                 <select
-                  id="proveedor"
-                  value={proveedor}
-                  onChange={(e) => setProveedor(e.target.value)}
+                  id="cliente"
+                  value={cliente}
+                  onChange={(e) => setCliente(e.target.value)}
                   required
                   className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  <option value="">Selecciona un proveedor</option>
-                  {proveedores.map((prov) => (
-                    <option key={prov.id} value={prov.proveedor}>
-                      {prov.proveedor}
+                  <option value="">Selecciona un cliente</option>
+                  {clientes.map((cli) => (
+                    <option key={cli.id} value={cli.nombre}>
+                      {cli.nombre}
                     </option>
                   ))}
                 </select>
@@ -416,7 +431,7 @@ export default function CompraForm() {
                               Stock: {art.existencia}
                             </span>
                             <span className="font-semibold text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/20 px-2 py-0.5 rounded">
-                              Costo: ${art.costo_compra}
+                              Precio: ${art.precio_venta}
                             </span>
                             {art.familia && (
                               <span className="text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/20 px-2 py-0.5 rounded">
@@ -436,7 +451,7 @@ export default function CompraForm() {
         {/* Lista de Artículos Agregados */}
         <Card>
           <CardHeader>
-            <CardTitle>Artículos de la Compra ({items.length})</CardTitle>
+            <CardTitle>Artículos de la Venta ({items.length})</CardTitle>
           </CardHeader>
           <CardContent>
             {items.length === 0 ? (
@@ -463,7 +478,7 @@ export default function CompraForm() {
                         Cantidad
                       </th>
                       <th className="text-right py-3 px-4 text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
-                        Costo Unit.
+                        Precio Unit.
                       </th>
                       <th className="text-right py-3 px-4 text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
                         Subtotal
@@ -482,13 +497,16 @@ export default function CompraForm() {
                         ? parseFloat(articuloActual.existencia) || 0
                         : 0;
                       const subtotal =
-                        (parseFloat(item.costo_compra) || 0) * (item.cant || 0);
+                        (parseFloat(item.precio_venta) || 0) * (item.cant || 0);
+                      const stockInsuficiente = stockDisponible < item.cant;
 
                       return (
                         <tr
                           key={item.id}
                           className={`hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors ${
-                            index % 2 === 0
+                            stockInsuficiente
+                              ? "bg-red-50/50 dark:bg-red-900/10"
+                              : index % 2 === 0
                               ? "bg-white dark:bg-gray-800"
                               : "bg-gray-50/50 dark:bg-gray-800/50"
                           }`}
@@ -520,11 +538,11 @@ export default function CompraForm() {
                           <td className="py-3 px-4 text-center">
                             <span
                               className={`text-sm font-semibold px-2 py-1 rounded ${
-                                stockDisponible > 10
+                                stockInsuficiente
+                                  ? "text-red-700 bg-red-100 dark:text-red-400 dark:bg-red-900/30"
+                                  : stockDisponible > 10
                                   ? "text-green-700 bg-green-100 dark:text-green-400 dark:bg-green-900/30"
-                                  : stockDisponible > 0
-                                  ? "text-yellow-700 bg-yellow-100 dark:text-yellow-400 dark:bg-yellow-900/30"
-                                  : "text-gray-700 bg-gray-100 dark:text-gray-400 dark:bg-gray-900/30"
+                                  : "text-yellow-700 bg-yellow-100 dark:text-yellow-400 dark:bg-yellow-900/30"
                               }`}
                             >
                               {stockDisponible}
@@ -542,8 +560,17 @@ export default function CompraForm() {
                                   parseInt(e.target.value) || 1
                                 )
                               }
-                              className="w-20 text-center"
+                              className={`w-20 text-center ${
+                                stockInsuficiente
+                                  ? "border-red-300 dark:border-red-700"
+                                  : ""
+                              }`}
                             />
+                            {stockInsuficiente && (
+                              <p className="text-xs text-red-600 dark:text-red-400 mt-1">
+                                Stock insuficiente
+                              </p>
+                            )}
                           </td>
                           <td className="py-3 px-4">
                             <div className="flex items-center justify-end gap-1">
@@ -551,11 +578,11 @@ export default function CompraForm() {
                               <Input
                                 type="text"
                                 inputMode="decimal"
-                                value={item.costo_compra}
+                                value={item.precio_venta}
                                 onChange={(e) => {
                                   const value = e.target.value.replace(",", ".");
                                   if (/^\d*\.?\d*$/.test(value)) {
-                                    actualizarItem(item.id!, "costo_compra", value);
+                                    actualizarItem(item.id!, "precio_venta", value);
                                   }
                                 }}
                                 className="w-24 text-right"
@@ -595,7 +622,7 @@ export default function CompraForm() {
               <div className="flex items-center justify-between">
                 <div>
                   <span className="text-2xl font-semibold text-gray-700 dark:text-gray-300">
-                    Total de la Compra:
+                    Total de la Venta:
                   </span>
                   <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
                     {items.length} {items.length === 1 ? "artículo" : "artículos"}
@@ -613,7 +640,7 @@ export default function CompraForm() {
 
         {/* Botones de acción */}
         <div className="flex gap-4 justify-end">
-          <Link href="/auth/rut-compras/lista-compras">
+          <Link href="/auth/rut-ventas/lista-ventas">
             <Button type="button" variant="outline">
               Cancelar
             </Button>
@@ -627,7 +654,7 @@ export default function CompraForm() {
             ) : (
               <>
                 <Save className="h-4 w-4 mr-2" />
-                {compraId ? "Actualizar Compra" : "Guardar Compra"}
+                {ventaId ? "Actualizar Venta" : "Guardar Venta"}
               </>
             )}
           </Button>

@@ -6,36 +6,36 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Home, ShoppingCart, Loader2, Plus, Edit, Trash2, Eye } from "lucide-react";
 
-type Compras = {
+type Ventas = {
   id: number;
-  proveedor: string;
+  cliente: string;
   items: Array<{
     codint: string;
     nombre_articulo: string;
     descripcion: string;
     familia: string;
     cant: number;
-    costo_compra: string;
+    precio_venta: string;
     
   }>;
   total: string;
   created_at?: string;
 };
 
-export default function ListaCompras() {
+export default function ListaVentas() {
   const supabase = createClient();
-  const [compras, setCompras] = useState<Compras[]>([]);
+  const [ventas, setVentas] = useState<Ventas[]>([]);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [eliminandoId, setEliminandoId] = useState<number | null>(null);
   const [mostrandoItems, setMostrandoItems] = useState<number | null>(null);
 
   useEffect(() => {
-    const cargarCompras = async () => {
+    const cargarVentas = async () => {
       try {
         const { data, error: fetchError } = await supabase
-          .from("compras")
-          .select("id, proveedor, items, total, created_at")
+          .from("ventas")
+          .select("id, cliente, items, total, created_at")
           .order("created_at", { ascending: false });
 
         if (fetchError) {
@@ -45,45 +45,45 @@ export default function ListaCompras() {
         }
 
         // Parsear items si vienen como string JSON
-        const comprasParsed = (data || []).map((compra) => ({
-          ...compra,
-          items: typeof compra.items === 'string' ? JSON.parse(compra.items) : compra.items,
+        const ventasParsed = (data || []).map((venta) => ({
+          ...venta,
+          items: typeof venta.items === 'string' ? JSON.parse(venta.items) : venta.items,
         }));
 
-        setCompras(comprasParsed);
+        setVentas(ventasParsed);
       } catch (err) {
-        setError("Error al cargar las compras");
+        setError("Error al cargar las ventas");
         console.error(err);
       } finally {
         setCargando(false);
       }
     };
 
-    cargarCompras();
+    cargarVentas();
   }, [supabase]);
 
-  const eliminarCompra = async (id: number, proveedor: string) => {
-    if (!confirm(`¿Estás seguro de que deseas eliminar la compra del proveedor "${proveedor}"?`)) {
+  const eliminarVenta = async (id: number, cliente: string) => {
+    if (!confirm(`¿Estás seguro de que deseas eliminar la venta al cliente "${cliente}"?`)) {
       return;
     }
 
     setEliminandoId(id);
     try {
       const { error: deleteError } = await supabase
-        .from("compras")
+        .from("ventas")
         .delete()
         .eq("id", id);
 
       if (deleteError) {
-        alert("Error al eliminar la compra: " + deleteError.message);
+        alert("Error al eliminar la venta: " + deleteError.message);
         setEliminandoId(null);
         return;
       }
 
       // Actualizar la lista local
-      setCompras(compras.filter((compra) => compra.id !== id));
+      setVentas(ventas.filter((venta) => venta.id !== id));
     } catch (err) {
-      alert("Error al eliminar la compra");
+      alert("Error al eliminar la venta");
       console.error(err);
     } finally {
       setEliminandoId(null);
@@ -94,7 +94,7 @@ export default function ListaCompras() {
     setMostrandoItems(mostrandoItems === id ? null : id);
   };
 
-  const contarItems = (items: Compras['items']) => {
+  const contarItems = (items: Ventas['items']) => {
     return items ? items.length : 0;
   };
 
@@ -103,7 +103,7 @@ export default function ListaCompras() {
       <div className="flex items-center justify-center p-8">
         <div className="flex items-center gap-2 text-gray-600 dark:text-gray-400">
           <Loader2 className="h-5 w-5 animate-spin" />
-          <p>Cargando compras...</p>
+          <p>Cargando ventas...</p>
         </div>
       </div>
     );
@@ -128,17 +128,17 @@ export default function ListaCompras() {
             <ShoppingCart className="h-6 w-6 text-white" />
           </div>
           <h2 className="text-3xl font-bold text-gray-800 dark:text-gray-200">
-            Lista de Compras
+            Lista de Ventas
           </h2>
         </div>
         <div className="flex flex-wrap gap-3">
-          <Link href="/auth/rut-compras/form-compra?nuevo=true">
+          <Link href="/auth/rut-ventas/form-ventas">
             <Button
               size="lg"
               className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white font-semibold px-6 py-6 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 flex items-center gap-3"
             >
               <Plus className="h-5 w-5" />
-              Nueva Compra
+              Nueva Venta
             </Button>
           </Link>
           <Link href="/protected">
@@ -157,15 +157,15 @@ export default function ListaCompras() {
       <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
         <ShoppingCart className="h-4 w-4" />
         <span>
-          Total de compras: <span className="font-semibold text-indigo-600 dark:text-indigo-400">{compras.length}</span>
+          Total de compras: <span className="font-semibold text-indigo-600 dark:text-indigo-400">{ventas.length}</span>
         </span>
       </div>
 
       {/* Tabla de compras */}
-      {compras.length === 0 ? (
+      {ventas.length === 0 ? (
         <div className="p-8 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl text-center text-gray-600 dark:text-gray-400">
           <ShoppingCart className="h-12 w-12 mx-auto mb-3 text-gray-400 dark:text-gray-500" />
-          <p className="text-lg">No hay compras registradas.</p>
+          <p className="text-lg">No hay ventas registradas.</p>
         </div>
       ) : (
         <div className="overflow-x-auto rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
@@ -173,7 +173,7 @@ export default function ListaCompras() {
             <thead className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white sticky top-0 z-10">
               <tr>
                 <th className={headerClass}>ID</th>
-                <th className={headerClass}>Proveedor</th>
+                <th className={headerClass}>Cliente</th>
                 <th className={headerClass}>Items</th>
                 <th className={headerClass}>Total</th>
                 <th className={headerClass}>Fecha</th>
@@ -181,42 +181,42 @@ export default function ListaCompras() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-              {compras.flatMap((compra) => [
+              {ventas.flatMap((venta) => [
                 <tr
-                  key={compra.id}
+                  key={venta.id}
                   className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors duration-150"
                 >
                   <td className="px-4 py-3 text-sm text-gray-700 dark:text-gray-300 font-mono">
-                    {compra.id}
+                    {venta.id}
                   </td>
                   <td className="px-4 py-3 text-sm font-medium text-gray-900 dark:text-gray-100">
-                    {compra.proveedor || (
+                    {venta.cliente || (
                       <span className="text-gray-400 dark:text-gray-500 italic">N/A</span>
                     )}
                   </td>
                   <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">
                     <div className="flex items-center gap-2">
-                      <span className="font-semibold">{contarItems(compra.items)}</span>
+                      <span className="font-semibold">{contarItems(venta.items)}</span>
                       <span className="text-gray-500">artículos</span>
-                      {compra.items && compra.items.length > 0 && (
+                      {venta.items && venta.items.length > 0 && (
                         <Button
                           size="sm"
                           variant="ghost"
-                          onClick={() => toggleItems(compra.id)}
+                          onClick={() => toggleItems(venta.id)}
                           className="h-6 px-2 text-xs"
                         >
                           <Eye className="h-3 w-3 mr-1" />
-                          {mostrandoItems === compra.id ? "Ocultar" : "Ver"}
+                          {mostrandoItems === venta.id ? "Ocultar" : "Ver"}
                         </Button>
                       )}
                     </div>
                   </td>
                   <td className="px-4 py-3 text-sm font-semibold text-gray-900 dark:text-gray-100">
-                    ${compra.total || "0.00"}
+                    ${venta.total || "0.00"}
                   </td>
                   <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">
-                    {compra.created_at
-                      ? new Date(compra.created_at).toLocaleDateString("es-ES", {
+                    {venta.created_at
+                      ? new Date(venta.created_at).toLocaleDateString("es-ES", {
                           year: "numeric",
                           month: "short",
                           day: "numeric",
@@ -227,7 +227,7 @@ export default function ListaCompras() {
                   </td>
                   <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">
                     <div className="flex items-center gap-2">
-                      <Link href={`/auth/rut-compras/form-compra?id=${compra.id}`}>
+                      <Link href={`/auth/rut-ventas/form-ventas?id=${venta.id}`}>
                         <Button
                           size="sm"
                           variant="outline"
@@ -239,11 +239,11 @@ export default function ListaCompras() {
                       <Button
                         size="sm"
                         variant="outline"
-                        onClick={() => eliminarCompra(compra.id, compra.proveedor)}
-                        disabled={eliminandoId === compra.id}
+                        onClick={() => eliminarVenta(venta.id, venta.cliente)}
+                        disabled={eliminandoId === venta.id}
                         className="bg-red-50 hover:bg-red-100 dark:bg-red-900/20 dark:hover:bg-red-900/40 text-red-600 dark:text-red-400 border-red-200 dark:border-red-800 disabled:opacity-50"
                       >
-                        {eliminandoId === compra.id ? (
+                        {eliminandoId === venta.id ? (
                           <Loader2 className="h-4 w-4 animate-spin" />
                         ) : (
                           <Trash2 className="h-4 w-4" />
@@ -252,8 +252,8 @@ export default function ListaCompras() {
                     </div>
                   </td>
                 </tr>,
-                mostrandoItems === compra.id && compra.items && compra.items.length > 0 ? (
-                  <tr key={`${compra.id}-details`}>
+                mostrandoItems === venta.id && venta.items && venta.items.length > 0 ? (
+                  <tr key={`${venta.id}-details`}>
                     <td colSpan={6} className="px-4 py-4 bg-gray-50 dark:bg-gray-900/50">
                       <div className="space-y-2">
                         <h4 className="font-semibold text-sm text-gray-700 dark:text-gray-300 mb-3">
@@ -273,7 +273,7 @@ export default function ListaCompras() {
                               </tr>
                             </thead>
                             <tbody>
-                              {compra.items.map((item, idx) => (
+                              {venta.items.map((item, idx) => (
                                 <tr key={idx} className="border-b border-gray-200 dark:border-gray-700">
                                   <td className="px-2 py-2 font-mono">{item.codint}</td>
                                   <td className="px-2 py-2">
@@ -286,7 +286,7 @@ export default function ListaCompras() {
                                   </td>
                                   <td className="px-2 py-2">{item.familia || "N/A"}</td>
                                   <td className="px-2 py-2 text-right">{item.cant}</td>
-                                  <td className="px-2 py-2 text-right">${item.costo_compra || "0.00"}</td>
+                                  <td className="px-2 py-2 text-right">${item.precio_venta || "0.00"}</td>
                                   
                                 </tr>
                               ))}
