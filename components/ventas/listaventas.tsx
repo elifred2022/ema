@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { Home, ShoppingCart, Loader2, Plus, Edit, Trash2, Eye } from "lucide-react";
+import { Home, ShoppingCart, Loader2, Plus, Edit, Trash2, Eye, Printer } from "lucide-react";
 
 type Ventas = {
   id: number;
@@ -227,11 +227,22 @@ export default function ListaVentas() {
                   </td>
                   <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">
                     <div className="flex items-center gap-2">
+                      <Link href={`/auth/rut-ventas/boleta/${venta.id}`}>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="bg-green-50 hover:bg-green-100 dark:bg-green-900/20 dark:hover:bg-green-900/40 text-green-600 dark:text-green-400 border-green-200 dark:border-green-800"
+                          title="Ver Boleta"
+                        >
+                          <Printer className="h-4 w-4" />
+                        </Button>
+                      </Link>
                       <Link href={`/auth/rut-ventas/form-ventas?id=${venta.id}`}>
                         <Button
                           size="sm"
                           variant="outline"
                           className="bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/20 dark:hover:bg-blue-900/40 text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-800"
+                          title="Editar"
                         >
                           <Edit className="h-4 w-4" />
                         </Button>
@@ -242,6 +253,7 @@ export default function ListaVentas() {
                         onClick={() => eliminarVenta(venta.id, venta.cliente)}
                         disabled={eliminandoId === venta.id}
                         className="bg-red-50 hover:bg-red-100 dark:bg-red-900/20 dark:hover:bg-red-900/40 text-red-600 dark:text-red-400 border-red-200 dark:border-red-800 disabled:opacity-50"
+                        title="Eliminar"
                       >
                         {eliminandoId === venta.id ? (
                           <Loader2 className="h-4 w-4 animate-spin" />
