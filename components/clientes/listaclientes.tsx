@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -20,33 +20,65 @@ export default function ListaClientes() {
   const supabase = createClient();
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [cargando, setCargando] = useState(true);
+  const [cargandoInicial, setCargandoInicial] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [eliminandoId, setEliminandoId] = useState<number | null>(null);
+  const [busqueda, setBusqueda] = useState("");
+  const inputBusquedaRef = useRef<HTMLInputElement | null>(null);
+
+  const cargarClientes = async (filtro?: string) => {
+    setCargando(true);
+    setError(null);
+    try {
+      let query = supabase
+        .from("clientes")
+        .select("id, nombre, direccion, telefono, email, user_id, created_at")
+        .order("created_at", { ascending: false });
+
+      const termino = filtro?.trim();
+      if (termino) {
+        const pattern = `%${termino}%`;
+        query = query.or(
+          `nombre.ilike.${pattern},email.ilike.${pattern},telefono.ilike.${pattern}`
+        );
+      }
+
+      const { data, error: fetchError } = await query;
+
+      if (fetchError) {
+        setError(fetchError.message);
+        return;
+      }
+
+      setClientes(data || []);
+    } catch (err) {
+      setError("Error al cargar los clientes");
+    } finally {
+      setCargando(false);
+      setCargandoInicial(false);
+    }
+  };
 
   useEffect(() => {
-    const cargarClientes = async () => {
-      try {
-        const { data, error: fetchError } = await supabase
-          .from("clientes")
-          .select("id, nombre, direccion, telefono, email, user_id, created_at")
-          .order("created_at", { ascending: false });
-
-        if (fetchError) {
-          setError(fetchError.message);
-          setCargando(false);
-          return;
-        }
-
-        setClientes(data || []);
-      } catch (err) {
-        setError("Error al cargar los clientes");
-      } finally {
-        setCargando(false);
-      }
-    };
-
     cargarClientes();
   }, [supabase]);
+
+  const limpiarBusqueda = async () => {
+    setBusqueda("");
+    await cargarClientes();
+  };
+
+  useEffect(() => {
+    const handle = setTimeout(() => {
+      cargarClientes(busqueda);
+    }, 300);
+
+    return () => clearTimeout(handle);
+  }, [busqueda]);
+
+  useEffect(() => {
+    inputBusquedaRef.current?.focus();
+  }, []);
 
   const eliminarCliente = async (id: number, nombre: string) => {
     if (!confirm(`¿Estás seguro de que deseas eliminar al cliente "${nombre}"?`)) {
@@ -75,7 +107,7 @@ export default function ListaClientes() {
     }
   };
 
-  if (cargando) {
+  if (cargandoInicial) {
     return (
       <div className="flex items-center justify-center p-8">
         <div className="flex items-center gap-2 text-gray-600 dark:text-gray-400">
@@ -136,6 +168,44 @@ export default function ListaClientes() {
         <span>
           Total de clientes: <span className="font-semibold text-indigo-600 dark:text-indigo-400">{clientes.length}</span>
         </span>
+      </div>
+
+      {/* Buscador */}
+      <div className="flex flex-col sm:flex-row gap-3 sm:items-end bg-gray-50 dark:bg-gray-800/60 border border-gray-200 dark:border-gray-700 rounded-xl p-4">
+        <div className="flex flex-col gap-1 flex-1 min-w-[220px]">
+          <label className="text-sm text-gray-600 dark:text-gray-400">Buscar</label>
+          <input
+            type="text"
+            placeholder="Nombre, email o teléfono"
+            value={busqueda}
+            onChange={(e) => setBusqueda(e.target.value)}
+            ref={inputBusquedaRef}
+            className="h-10 px-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-sm"
+          />
+        </div>
+        <div className="flex gap-2">
+          <Button
+            size="sm"
+            onClick={() => cargarClientes(busqueda)}
+            className="bg-indigo-600 hover:bg-indigo-700 text-white"
+          >
+            Buscar
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={limpiarBusqueda}
+            className="border-gray-300 dark:border-gray-600"
+          >
+            Limpiar
+          </Button>
+        </div>
+        {cargando && (
+          <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            <span>Buscando...</span>
+          </div>
+        )}
       </div>
 
       {/* Tabla de clientes */}

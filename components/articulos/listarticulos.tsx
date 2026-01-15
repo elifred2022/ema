@@ -11,6 +11,7 @@ import { Home, Plus, Search, Edit, Trash2, ArrowDownCircle, ArrowUpCircle, X, Sa
 type Articulo = {
   id: string;
   created_at: string;
+  codbar: string;
   codint: string;
   nombre_articulo: string;
   descripcion: string;
@@ -280,6 +281,7 @@ const cellClass =
             <th  className={headerClass}>Accion</th>
              <th  className={headerClass}>Id</th>
              <th  className={headerClass}>Fecha de alta</th>
+              <th  className={headerClass}>Cod barra</th>
             <th  className={headerClass}>Cod int</th>
             <th  className={headerClass}>Articulo</th>
             <th  className={headerClass}>Descripcion</th>
@@ -414,7 +416,8 @@ const cellClass =
 
                 <td className={cellClass}>{articulo.id}</td>
               <td className={cellClass}>{formatDate(articulo.created_at) || "-"}</td>
-                <td className={cellClass}>{renderValue(articulo.codint)}</td>
+              <td className={cellClass}>{renderValue(articulo.codbar)}</td>
+              <td className={cellClass}>{renderValue(articulo.codint)}</td>
                 <td className={cellClass}>{articulo.nombre_articulo}</td>
                 <td className={cellClass}>{articulo.descripcion}</td>
                 <td className={cellClass}>{articulo.familia}</td>
@@ -652,6 +655,10 @@ const cellClass =
             </div>
 
             <div className="mb-6 p-4 bg-green-50 dark:bg-green-900/20 rounded-lg grid grid-cols-2 gap-3">
+            <div>
+                <span className="block text-xs font-semibold text-gray-600 dark:text-gray-400">Código:</span>
+                <span className="text-gray-800 dark:text-gray-200 font-medium">{ingresarArticulo.codbar}</span>
+              </div>
               <div>
                 <span className="block text-xs font-semibold text-gray-600 dark:text-gray-400">Código:</span>
                 <span className="text-gray-800 dark:text-gray-200 font-medium">{ingresarArticulo.codint}</span>
@@ -856,6 +863,7 @@ const cellClass =
                     // 2. Insertar en ingarticulos
                     const { error: insertError } = await supabase.from("ingarticulos").insert({
                     codint: ingresarArticulo.codint,
+                    codbar: ingresarArticulo.codbar,
                     nombre_articulo: ingresarArticulo.nombre_articulo,
                     descripcion: ingresarArticulo.descripcion,
                     ingresart: cantIngreso,

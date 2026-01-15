@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { createProveedor } from "@/lib/supabase/client";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -22,33 +22,62 @@ export default function ListaProveedores() {
   const supabase = createProveedor();
   const [proveedores, setProveedores] = useState<Proveedor[]>([]);
   const [cargando, setCargando] = useState(true);
+  const [cargandoInicial, setCargandoInicial] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [eliminandoId, setEliminandoId] = useState<number | null>(null);
+  const [busqueda, setBusqueda] = useState("");
+  const inputBusquedaRef = useRef<HTMLInputElement | null>(null);
+
+  const cargarProveedores = async (filtro?: string) => {
+    setCargando(true);
+    setError(null);
+    try {
+      let query = supabase
+        .from("proveedores")
+        .select("id, proveedor, cuit, direccion, telefono, email, contacto, situacion, created_at")
+        .order("created_at", { ascending: false });
+
+      const termino = filtro?.trim();
+      if (termino) {
+        query = query.ilike("proveedor", `%${termino}%`);
+      }
+
+      const { data, error: fetchError } = await query;
+
+      if (fetchError) {
+        setError(fetchError.message);
+        return;
+      }
+
+      setProveedores(data || []);
+    } catch (err) {
+      setError("Error al cargar los proveedores");
+    } finally {
+      setCargando(false);
+      setCargandoInicial(false);
+    }
+  };
 
   useEffect(() => {
-    const cargarProveedores = async () => {
-      try {
-        const { data, error: fetchError } = await supabase
-          .from("proveedores")
-          .select("id, proveedor, cuit, direccion, telefono, email, contacto, situacion, created_at")
-          .order("created_at", { ascending: false });
-
-        if (fetchError) {
-          setError(fetchError.message);
-          setCargando(false);
-          return;
-        }
-
-        setProveedores(data || []);
-      } catch (err) {
-        setError("Error al cargar los proveedores");
-      } finally {
-        setCargando(false);
-      }
-    };
-
     cargarProveedores();
   }, [supabase]);
+
+  useEffect(() => {
+    const handle = setTimeout(() => {
+      cargarProveedores(busqueda);
+    }, 300);
+
+    return () => clearTimeout(handle);
+  }, [busqueda]);
+
+  useEffect(() => {
+    inputBusquedaRef.current?.focus();
+  }, []);
+
+  const limpiarBusqueda = async () => {
+    setBusqueda("");
+    await cargarProveedores();
+  };
 
   const eliminarProveedor = async (id: number, nombre: string) => {
     if (!confirm(`¿Estás seguro de que deseas eliminar al proveedor "${nombre}"?`)) {
@@ -77,7 +106,7 @@ export default function ListaProveedores() {
     }
   };
 
-  if (cargando) {
+  if (cargandoInicial) {
     return (
       <div className="flex items-center justify-center p-8">
         <div className="flex items-center gap-2 text-gray-600 dark:text-gray-400">
@@ -138,6 +167,44 @@ export default function ListaProveedores() {
         <span>
           Total de proveedores: <span className="font-semibold text-indigo-600 dark:text-indigo-400">{proveedores.length}</span>
         </span>
+      </div>
+
+      {/* Buscador */}
+      <div className="flex flex-col sm:flex-row gap-3 sm:items-end bg-gray-50 dark:bg-gray-800/60 border border-gray-200 dark:border-gray-700 rounded-xl p-4">
+        <div className="flex flex-col gap-1 flex-1 min-w-[220px]">
+          <label className="text-sm text-gray-600 dark:text-gray-400">Buscar</label>
+          <input
+            type="text"
+            placeholder="Nombre del proveedor"
+            value={busqueda}
+            onChange={(e) => setBusqueda(e.target.value)}
+            ref={inputBusquedaRef}
+            className="h-10 px-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-sm"
+          />
+        </div>
+        <div className="flex gap-2">
+          <Button
+            size="sm"
+            onClick={() => cargarProveedores(busqueda)}
+            className="bg-indigo-600 hover:bg-indigo-700 text-white"
+          >
+            Buscar
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={limpiarBusqueda}
+            className="border-gray-300 dark:border-gray-600"
+          >
+            Limpiar
+          </Button>
+        </div>
+        {cargando && (
+          <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            <span>Buscando...</span>
+          </div>
+        )}
       </div>
 
       {/* Tabla de clientes */}

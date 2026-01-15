@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { Home, ShoppingCart, Loader2, Plus, Edit, Trash2, Eye } from "lucide-react";
+import { Home, ShoppingCart, Loader2, Plus, Edit, Trash2, Eye, Printer } from "lucide-react";
 
 type Compras = {
   id: number;
@@ -18,7 +18,7 @@ type Compras = {
     costo_compra: string;
     
   }>;
-  total: string;
+  total: string | number;
   created_at?: string;
 };
 
@@ -29,38 +29,122 @@ export default function ListaCompras() {
   const [error, setError] = useState<string | null>(null);
   const [eliminandoId, setEliminandoId] = useState<number | null>(null);
   const [mostrandoItems, setMostrandoItems] = useState<number | null>(null);
+  const [fechaDesde, setFechaDesde] = useState("");
+  const [fechaHasta, setFechaHasta] = useState("");
+  const [busquedaProveedor, setBusquedaProveedor] = useState("");
+  const [totalConsulta, setTotalConsulta] = useState(0);
+
+  const parseCurrency = (value: string | number | null | undefined) => {
+    if (value === null || value === undefined) return 0;
+    if (typeof value === "number") {
+      return Number.isFinite(value) ? value : 0;
+    }
+
+    const normalized = String(value)
+      .replace(/[^0-9.,-]/g, "")
+      .trim();
+
+    if (!normalized) return 0;
+
+    if (normalized.includes(".") && normalized.includes(",")) {
+      const noThousands = normalized.replace(/\./g, "");
+      return Number.parseFloat(noThousands.replace(",", "."));
+    }
+
+    return Number.parseFloat(normalized.replace(",", "."));
+  };
+
+  const formatCurrency = (value: number) => {
+    return `$${value.toLocaleString("es-CL", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    })}`;
+  };
+
+  const toStartOfDayIso = (fecha: string) => {
+    const date = new Date(`${fecha}T00:00:00`);
+    return Number.isNaN(date.getTime()) ? null : date.toISOString();
+  };
+
+  const toEndOfDayIso = (fecha: string) => {
+    const date = new Date(`${fecha}T23:59:59.999`);
+    return Number.isNaN(date.getTime()) ? null : date.toISOString();
+  };
+
+  const cargarCompras = async (filtros?: { desde?: string; hasta?: string; proveedor?: string }) => {
+    setCargando(true);
+    setError(null);
+    try {
+      let query = supabase
+        .from("compras")
+        .select("id, proveedor, items, total, created_at")
+        .order("created_at", { ascending: false });
+
+      if (filtros?.desde) {
+        const desdeIso = toStartOfDayIso(filtros.desde);
+        if (desdeIso) {
+          query = query.gte("created_at", desdeIso);
+        }
+      }
+
+      if (filtros?.hasta) {
+        const hastaIso = toEndOfDayIso(filtros.hasta);
+        if (hastaIso) {
+          query = query.lte("created_at", hastaIso);
+        }
+      }
+
+      if (filtros?.proveedor?.trim()) {
+        query = query.ilike("proveedor", `%${filtros.proveedor.trim()}%`);
+      }
+
+      const { data, error: fetchError } = await query;
+
+      if (fetchError) {
+        setError(fetchError.message);
+        return;
+      }
+
+      const comprasParsed = (data || []).map((compra) => ({
+        ...compra,
+        items: typeof compra.items === "string" ? JSON.parse(compra.items) : compra.items,
+      }));
+
+      setCompras(comprasParsed);
+      const suma = comprasParsed.reduce((acc, compra) => {
+        return acc + parseCurrency(compra.total || "0");
+      }, 0);
+      setTotalConsulta(suma);
+    } catch (err) {
+      setError("Error al cargar las compras");
+      console.error(err);
+    } finally {
+      setCargando(false);
+    }
+  };
 
   useEffect(() => {
-    const cargarCompras = async () => {
-      try {
-        const { data, error: fetchError } = await supabase
-          .from("compras")
-          .select("id, proveedor, items, total, created_at")
-          .order("created_at", { ascending: false });
-
-        if (fetchError) {
-          setError(fetchError.message);
-          setCargando(false);
-          return;
-        }
-
-        // Parsear items si vienen como string JSON
-        const comprasParsed = (data || []).map((compra) => ({
-          ...compra,
-          items: typeof compra.items === 'string' ? JSON.parse(compra.items) : compra.items,
-        }));
-
-        setCompras(comprasParsed);
-      } catch (err) {
-        setError("Error al cargar las compras");
-        console.error(err);
-      } finally {
-        setCargando(false);
-      }
-    };
-
     cargarCompras();
   }, [supabase]);
+
+  const aplicarFiltros = async () => {
+    await cargarCompras({
+      desde: fechaDesde,
+      hasta: fechaHasta,
+      proveedor: busquedaProveedor,
+    });
+  };
+
+  const limpiarFiltros = async () => {
+    setFechaDesde("");
+    setFechaHasta("");
+    setBusquedaProveedor("");
+    await cargarCompras();
+  };
+
+  const imprimirReporte = () => {
+    window.print();
+  };
 
   const eliminarCompra = async (id: number, proveedor: string) => {
     if (!confirm(`¿Estás seguro de que deseas eliminar la compra del proveedor "${proveedor}"?`)) {
@@ -154,11 +238,78 @@ export default function ListaCompras() {
       </div>
 
       {/* Contador de compras */}
-      <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
-        <ShoppingCart className="h-4 w-4" />
-        <span>
-          Total de compras: <span className="font-semibold text-indigo-600 dark:text-indigo-400">{compras.length}</span>
-        </span>
+      <div className="flex flex-wrap items-center gap-4 text-sm text-gray-600 dark:text-gray-400">
+        <div className="flex items-center gap-2">
+          <ShoppingCart className="h-4 w-4" />
+          <span>
+            Total de compras:{" "}
+            <span className="font-semibold text-indigo-600 dark:text-indigo-400">{compras.length}</span>
+          </span>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-gray-500">Suma total (consulta):</span>
+          <span className="font-semibold text-emerald-600 dark:text-emerald-400">
+            {formatCurrency(totalConsulta)}
+          </span>
+        </div>
+      </div>
+
+      {/* Filtros */}
+      <div className="flex flex-col lg:flex-row gap-3 lg:items-end bg-gray-50 dark:bg-gray-800/60 border border-gray-200 dark:border-gray-700 rounded-xl p-4">
+        <div className="flex flex-col gap-1">
+          <label className="text-sm text-gray-600 dark:text-gray-400">Desde</label>
+          <input
+            type="date"
+            value={fechaDesde}
+            onChange={(e) => setFechaDesde(e.target.value)}
+            className="h-10 px-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-sm"
+          />
+        </div>
+        <div className="flex flex-col gap-1">
+          <label className="text-sm text-gray-600 dark:text-gray-400">Hasta</label>
+          <input
+            type="date"
+            value={fechaHasta}
+            onChange={(e) => setFechaHasta(e.target.value)}
+            className="h-10 px-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-sm"
+          />
+        </div>
+        <div className="flex flex-col gap-1 flex-1 min-w-[200px]">
+          <label className="text-sm text-gray-600 dark:text-gray-400">Proveedor</label>
+          <input
+            type="text"
+            placeholder="Buscar por nombre"
+            value={busquedaProveedor}
+            onChange={(e) => setBusquedaProveedor(e.target.value)}
+            className="h-10 px-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-sm"
+          />
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Button
+            size="sm"
+            onClick={aplicarFiltros}
+            className="bg-indigo-600 hover:bg-indigo-700 text-white"
+          >
+            Buscar
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={limpiarFiltros}
+            className="border-gray-300 dark:border-gray-600"
+          >
+            Limpiar
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={imprimirReporte}
+            className="border-gray-300 dark:border-gray-600 flex items-center gap-2"
+          >
+            <Printer className="h-4 w-4" />
+            Imprimir reporte
+          </Button>
+        </div>
       </div>
 
       {/* Tabla de compras */}
