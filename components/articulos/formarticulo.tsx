@@ -16,6 +16,7 @@ import { useState } from "react";
 
 export function FormArticulo({ className, ...props }: React.ComponentPropsWithoutRef<"div">) {
   const [nombre_articulo, setNombre_articulo] = useState("");
+  const [codbar, setCodbar] = useState("");
   const [codint, setCodint] = useState("");
   const [descripcion, setDescripcion] = useState("");
   const [familia, setFamilia] = useState("");
@@ -85,6 +86,7 @@ export function FormArticulo({ className, ...props }: React.ComponentPropsWithou
     .insert([
       {
 
+        codbar,
         codint,
         nombre_articulo,
         descripcion,
@@ -119,6 +121,16 @@ export function FormArticulo({ className, ...props }: React.ComponentPropsWithou
         </CardHeader>
         <CardContent>
           <form onSubmit={handleCrear} className="flex flex-col gap-6">
+
+              <div className="grid gap-2">
+              <Label htmlFor="codbar">Codbar</Label>
+              <Input
+                id="codbar"
+                type="text"
+                value={codbar}
+                onChange={(e) => setCodbar(e.target.value)}
+              />
+            </div>
 
               <div className="grid gap-2">
               <Label htmlFor="codint">Codigo interno</Label>

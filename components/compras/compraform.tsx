@@ -12,6 +12,7 @@ import Link from "next/link";
 
 type ItemCompra = {
   id?: string; // ID único para React key
+  codbar?: string;
   codint: string;
   nombre_articulo: string;
   descripcion: string;
@@ -28,6 +29,7 @@ type Proveedor = {
 
 type Articulo = {
   id: string;
+  codbar?: string;
   codint: string;
   nombre_articulo: string;
   descripcion: string;
@@ -50,6 +52,7 @@ export default function CompraForm() {
   const [compraId, setCompraId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busquedaArticulo, setBusquedaArticulo] = useState("");
+  const [codbarScan, setCodbarScan] = useState("");
 
   const idCompraParam = searchParams.get("id");
 
@@ -72,7 +75,7 @@ export default function CompraForm() {
         // Cargar artículos
         const { data: articulosData, error: articulosError } = await supabase
           .from("articulos")
-          .select("id, codint, nombre_articulo, descripcion, familia, costo_compra, existencia")
+          .select("id, codbar, codint, nombre_articulo, descripcion, familia, costo_compra, existencia")
           .order("nombre_articulo", { ascending: true });
 
         if (articulosError) {
@@ -146,8 +149,9 @@ export default function CompraForm() {
     const busquedaLower = busqueda.toLowerCase();
     return articulos.filter(
       (art) =>
-        art.codint.toLowerCase().includes(busquedaLower) ||
-        art.nombre_articulo.toLowerCase().includes(busquedaLower)
+        (art.codbar ?? "").toLowerCase().includes(busquedaLower) ||
+        (art.codint ?? "").toLowerCase().includes(busquedaLower) ||
+        (art.nombre_articulo ?? "").toLowerCase().includes(busquedaLower)
     );
   };
 
@@ -163,6 +167,7 @@ export default function CompraForm() {
       // Si no existe, agregarlo como nuevo item
       const nuevoItem: ItemCompra = {
         id: `item-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        codbar: articulo.codbar ?? "",
         codint: articulo.codint,
         nombre_articulo: articulo.nombre_articulo,
         descripcion: articulo.descripcion || "",
@@ -175,6 +180,19 @@ export default function CompraForm() {
     }
     // Limpiar búsqueda
     setBusquedaArticulo("");
+  };
+
+  const procesarCodbar = (codigo: string) => {
+    const valor = codigo.trim();
+    if (!valor) return;
+    const articulo = articulos.find((art) => art.codbar === valor);
+    if (articulo) {
+      seleccionarArticulo(articulo);
+      setCodbarScan("");
+    } else {
+      alert(`No se encontró artículo con codbar: ${valor}`);
+      setCodbarScan("");
+    }
   };
 
   // Guardar compra
@@ -247,54 +265,51 @@ export default function CompraForm() {
 
         // Actualizar stock de artículos solo para nuevas compras
         for (const item of items) {
-          if (item.articulo_id) {
-            // Buscar el artículo actual para obtener su existencia
-            const articuloActual = articulos.find((a) => a.id === item.articulo_id);
-            if (articuloActual) {
-              const existenciaActual = parseFloat(articuloActual.existencia) || 0;
-              const cantidadComprada = item.cant || 0;
-              const nuevaExistencia = existenciaActual + cantidadComprada;
+          const filtroArticulo =
+            item.articulo_id
+              ? { id: item.articulo_id }
+              : item.codint
+              ? { codint: item.codint }
+              : item.codbar
+              ? { codbar: item.codbar }
+              : null;
 
-              // Actualizar existencia y costo_compra en la tabla articulos
-              const { error: updateStockError } = await supabase
-                .from("articulos")
-                .update({
-                  existencia: nuevaExistencia.toString(),
-                  costo_compra: item.costo_compra,
-                })
-                .eq("id", item.articulo_id);
+          if (!filtroArticulo) {
+            console.warn("Item sin identificador para actualizar stock:", item);
+            continue;
+          }
 
-              if (updateStockError) {
-                console.error(
-                  `Error al actualizar stock del artículo ${item.codint}:`,
-                  updateStockError
-                );
-                // Continuar con los demás artículos aunque falle uno
-              }
-            }
-          } else {
-            // Si no tiene articulo_id, intentar buscar por codint
-            const articuloPorCodigo = articulos.find((a) => a.codint === item.codint);
-            if (articuloPorCodigo) {
-              const existenciaActual = parseFloat(articuloPorCodigo.existencia) || 0;
-              const cantidadComprada = item.cant || 0;
-              const nuevaExistencia = existenciaActual + cantidadComprada;
+          const { data: articuloActual, error: fetchArticuloError } = await supabase
+            .from("articulos")
+            .select("id, existencia")
+            .match(filtroArticulo)
+            .single();
 
-              const { error: updateStockError } = await supabase
-                .from("articulos")
-                .update({
-                  existencia: nuevaExistencia.toString(),
-                  costo_compra: item.costo_compra,
-                })
-                .eq("codint", item.codint);
+          if (fetchArticuloError || !articuloActual) {
+            console.error(
+              `Error al obtener artículo para stock (${item.codint || item.codbar || item.articulo_id}):`,
+              fetchArticuloError
+            );
+            continue;
+          }
 
-              if (updateStockError) {
-                console.error(
-                  `Error al actualizar stock del artículo ${item.codint}:`,
-                  updateStockError
-                );
-              }
-            }
+          const existenciaActual = parseFloat(articuloActual.existencia) || 0;
+          const cantidadComprada = item.cant || 0;
+          const nuevaExistencia = existenciaActual + cantidadComprada;
+
+          const { error: updateStockError } = await supabase
+            .from("articulos")
+            .update({
+              existencia: nuevaExistencia.toString(),
+              costo_compra: item.costo_compra,
+            })
+            .eq("id", articuloActual.id);
+
+          if (updateStockError) {
+            console.error(
+              `Error al actualizar stock del artículo ${item.codint || item.codbar || item.articulo_id}:`,
+              updateStockError
+            );
           }
         }
       }
@@ -376,7 +391,22 @@ export default function CompraForm() {
             <CardTitle>Agregar Artículo</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid gap-2">
+            <div className="grid gap-4">
+              <div className="grid gap-2">
+                <Label htmlFor="codbar-scan">Codbar (lector)</Label>
+                <Input
+                  id="codbar-scan"
+                  value={codbarScan}
+                  onChange={(e) => setCodbarScan(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key !== "Enter") return;
+                    e.preventDefault();
+                    procesarCodbar(codbarScan);
+                  }}
+                  placeholder="Escanea el código de barras..."
+                  autoComplete="off"
+                />
+              </div>
               <Label htmlFor="buscar-articulo">
                 Buscar Artículo (por código o nombre)
               </Label>

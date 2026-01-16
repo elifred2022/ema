@@ -12,6 +12,7 @@ import Link from "next/link";
 
 type ItemVenta = {
   id?: string; // ID único para React key
+  codbar: string;
   codint: string;
   nombre_articulo: string;
   descripcion: string;
@@ -28,6 +29,7 @@ type Cliente = {
 
 type Articulo = {
   id: string;
+  codbar: string;
   codint: string;
   nombre_articulo: string;
   descripcion: string;
@@ -50,6 +52,20 @@ export default function VentasForm() {
   const [ventaId, setVentaId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busquedaArticulo, setBusquedaArticulo] = useState("");
+  const [codbarScan, setCodbarScan] = useState("");
+
+  const procesarCodbar = (codigo: string) => {
+    const valor = codigo.trim();
+    if (!valor) return;
+    const articulo = articulos.find((art) => art.codbar === valor);
+    if (articulo) {
+      seleccionarArticulo(articulo);
+      setCodbarScan("");
+    } else {
+      alert(`No se encontró artículo con codbar: ${valor}`);
+      setCodbarScan("");
+    }
+  };
 
   const idVentaParam = searchParams.get("id");
 
@@ -72,7 +88,7 @@ export default function VentasForm() {
         // Cargar artículos
         const { data: articulosData, error: articulosError } = await supabase
           .from("articulos")
-          .select("id, codint, nombre_articulo, descripcion, familia, precio_venta, existencia")
+          .select("id, codbar, codint, nombre_articulo, descripcion, familia, precio_venta, existencia")
           .order("nombre_articulo", { ascending: true });
 
         if (articulosError) {
@@ -146,8 +162,9 @@ export default function VentasForm() {
     const busquedaLower = busqueda.toLowerCase();
     return articulos.filter(
       (art) =>
-        art.codint.toLowerCase().includes(busquedaLower) ||
-        art.nombre_articulo.toLowerCase().includes(busquedaLower)
+        (art.codbar ?? "").toLowerCase().includes(busquedaLower) ||
+        (art.codint ?? "").toLowerCase().includes(busquedaLower) ||
+        (art.nombre_articulo ?? "").toLowerCase().includes(busquedaLower)
     );
   };
 
@@ -163,6 +180,7 @@ export default function VentasForm() {
       // Si no existe, agregarlo como nuevo item
       const nuevoItem: ItemVenta = {
         id: `item-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        codbar: articulo.codbar,
         codint: articulo.codint,
         nombre_articulo: articulo.nombre_articulo,
         descripcion: articulo.descripcion || "",
@@ -282,14 +300,14 @@ export default function VentasForm() {
 
               if (updateStockError) {
                 console.error(
-                  `Error al actualizar stock del artículo ${item.codint}:`,
+                  `Error al actualizar stock del artículo ${item.codint} ${item.codbar}:`,
                   updateStockError
                 );
                 // Continuar con los demás artículos aunque falle uno
               }
             }
           } else {
-            // Si no tiene articulo_id, intentar buscar por codint
+            // Si no tiene articulo_id, intentar buscar por codint o codbar
             const articuloPorCodigo = articulos.find((a) => a.codint === item.codint);
             if (articuloPorCodigo) {
               const existenciaActual = parseFloat(articuloPorCodigo.existencia) || 0;
@@ -391,7 +409,22 @@ export default function VentasForm() {
             <CardTitle>Agregar Artículo</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid gap-2">
+            <div className="grid gap-4">
+              <div className="grid gap-2">
+                <Label htmlFor="codbar-scan">Codbar (lector)</Label>
+                <Input
+                  id="codbar-scan"
+                  value={codbarScan}
+                  onChange={(e) => setCodbarScan(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key !== "Enter") return;
+                    e.preventDefault();
+                    procesarCodbar(codbarScan);
+                  }}
+                  placeholder="Escanea el código de barras..."
+                  autoComplete="off"
+                />
+              </div>
               <Label htmlFor="buscar-articulo">
                 Buscar Artículo (por código o nombre)
               </Label>
@@ -469,6 +502,9 @@ export default function VentasForm() {
                         Código
                       </th>
                       <th className="text-left py-3 px-4 text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
+                        Codbar
+                      </th>
+                      <th className="text-left py-3 px-4 text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
                         Artículo
                       </th>
                       <th className="text-center py-3 px-4 text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
@@ -515,6 +551,16 @@ export default function VentasForm() {
                             <span className="font-mono text-sm font-medium text-gray-700 dark:text-gray-300">
                               {item.codint}
                             </span>
+                          </td>
+                          <td className="py-3 px-4">
+                            <Input
+                              type="text"
+                              value={item.codbar ?? ""}
+                              onChange={(e) =>
+                                actualizarItem(item.id!, "codbar", e.target.value)
+                              }
+                              className="w-32 font-mono text-sm"
+                            />
                           </td>
                           <td className="py-3 px-4">
                             <div className="space-y-1">
