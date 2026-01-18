@@ -53,8 +53,10 @@ export default function CompraForm() {
   const [error, setError] = useState<string | null>(null);
   const [busquedaArticulo, setBusquedaArticulo] = useState("");
   const [codbarScan, setCodbarScan] = useState("");
+  const [numeroFactura, setNumeroFactura] = useState("");
 
   const idCompraParam = searchParams.get("id");
+  const esModoNuevo = searchParams.get("nuevo") === "true" || !idCompraParam;
 
   // Cargar proveedores, artículos y datos de compra si existe
   useEffect(() => {
@@ -98,8 +100,8 @@ export default function CompraForm() {
             if (compraData && !compraError) {
               setProveedor(compraData.proveedor || "");
               // Parsear items si vienen como string JSON
-              const itemsParsed = typeof compraData.items === 'string' 
-                ? JSON.parse(compraData.items) 
+              const itemsParsed = typeof compraData.items === 'string'
+                ? JSON.parse(compraData.items)
                 : compraData.items;
               // Agregar IDs únicos a los items si no los tienen
               const itemsConIds = (itemsParsed || []).map((item: ItemCompra) => ({
@@ -159,7 +161,7 @@ export default function CompraForm() {
   const seleccionarArticulo = (articulo: Articulo) => {
     // Verificar si el artículo ya está en la lista
     const existe = items.find((item) => item.articulo_id === articulo.id);
-    
+
     if (existe) {
       // Si ya existe, aumentar la cantidad en 1
       actualizarItem(existe.id!, "cant", (existe.cant || 1) + 1);
@@ -255,6 +257,7 @@ export default function CompraForm() {
           proveedor,
           items: itemsParaGuardar,
           total,
+          fac: numeroFactura || null,
         });
 
         if (insertError) {
@@ -269,10 +272,10 @@ export default function CompraForm() {
             item.articulo_id
               ? { id: item.articulo_id }
               : item.codint
-              ? { codint: item.codint }
-              : item.codbar
-              ? { codbar: item.codbar }
-              : null;
+                ? { codint: item.codint }
+                : item.codbar
+                  ? { codbar: item.codbar }
+                  : null;
 
           if (!filtroArticulo) {
             console.warn("Item sin identificador para actualizar stock:", item);
@@ -381,6 +384,18 @@ export default function CompraForm() {
                   ))}
                 </select>
               </div>
+              {esModoNuevo && (
+                <div className="grid gap-2">
+                  <Label htmlFor="numero-factura">Número de Factura</Label>
+                  <Input
+                    id="numero-factura"
+                    type="text"
+                    value={numeroFactura}
+                    onChange={(e) => setNumeroFactura(e.target.value)}
+                    placeholder="Ingrese el número de factura..."
+                  />
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -517,11 +532,10 @@ export default function CompraForm() {
                       return (
                         <tr
                           key={item.id}
-                          className={`hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors ${
-                            index % 2 === 0
+                          className={`hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors ${index % 2 === 0
                               ? "bg-white dark:bg-gray-800"
                               : "bg-gray-50/50 dark:bg-gray-800/50"
-                          }`}
+                            }`}
                         >
                           <td className="py-3 px-4">
                             <span className="font-mono text-sm font-medium text-gray-700 dark:text-gray-300">
@@ -549,13 +563,12 @@ export default function CompraForm() {
                           </td>
                           <td className="py-3 px-4 text-center">
                             <span
-                              className={`text-sm font-semibold px-2 py-1 rounded ${
-                                stockDisponible > 10
+                              className={`text-sm font-semibold px-2 py-1 rounded ${stockDisponible > 10
                                   ? "text-green-700 bg-green-100 dark:text-green-400 dark:bg-green-900/30"
                                   : stockDisponible > 0
-                                  ? "text-yellow-700 bg-yellow-100 dark:text-yellow-400 dark:bg-yellow-900/30"
-                                  : "text-gray-700 bg-gray-100 dark:text-gray-400 dark:bg-gray-900/30"
-                              }`}
+                                    ? "text-yellow-700 bg-yellow-100 dark:text-yellow-400 dark:bg-yellow-900/30"
+                                    : "text-gray-700 bg-gray-100 dark:text-gray-400 dark:bg-gray-900/30"
+                                }`}
                             >
                               {stockDisponible}
                             </span>
