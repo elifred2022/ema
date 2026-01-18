@@ -369,6 +369,7 @@ const cellClass =
                       setFormData({
                         created_at: articulo.created_at,
                         id: articulo.id,
+                        codbar: articulo.codbar,
                         codint: articulo.codint,
                         nombre_articulo: articulo.nombre_articulo,
                         descripcion: articulo.descripcion,
@@ -475,6 +476,32 @@ const cellClass =
                 }
               />
             </label>
+
+            <div className="grid grid-cols-2 gap-4 mb-4">
+              <label className="block">
+                <p className="text-gray-700 dark:text-gray-300 font-medium mb-2">Cod. Barras</p>
+                <Input
+                  className="w-full"
+                  type="text"
+                  value={formData.codbar ?? ""}
+                  onChange={(e) =>
+                    setFormData({ ...formData, codbar: e.target.value})
+                  }
+                />
+              </label>
+
+              <label className="block">
+                <p className="text-gray-700 dark:text-gray-300 font-medium mb-2">Cod. Interno</p>
+                <Input
+                  className="w-full"
+                  type="text"
+                  value={formData.codint ?? ""}
+                  onChange={(e) =>
+                    setFormData({ ...formData, codint: e.target.value})
+                  }
+                />
+              </label>
+            </div>
 
             <label className="block mb-4">
               <p className="text-gray-700 dark:text-gray-300 font-medium mb-2">Descripción</p>

@@ -17,9 +17,11 @@ type Compras = {
     cant: number;
     costo_compra: string;
     
+    
   }>;
   total: string | number;
   created_at?: string;
+  fac: string;
 };
 
 export default function ListaCompras() {
@@ -77,7 +79,7 @@ export default function ListaCompras() {
     try {
       let query = supabase
         .from("compras")
-        .select("id, proveedor, items, total, created_at")
+        .select("id, proveedor, items, total, created_at, fac")
         .order("created_at", { ascending: false });
 
       if (filtros?.desde) {
@@ -328,6 +330,7 @@ export default function ListaCompras() {
                 <th className={headerClass}>Items</th>
                 <th className={headerClass}>Total</th>
                 <th className={headerClass}>Fecha</th>
+                <th className={headerClass}>Factura</th>
                 <th className={headerClass}>Acciones</th>
               </tr>
             </thead>
@@ -375,6 +378,11 @@ export default function ListaCompras() {
                       : (
                         <span className="text-gray-400 dark:text-gray-500 italic">N/A</span>
                       )}
+                  </td>
+                  <td className="px-4 py-3 text-sm font-medium text-gray-900 dark:text-gray-100">
+                    {compra.fac || (
+                      <span className="text-gray-400 dark:text-gray-500 italic">N/A</span>
+                    )}
                   </td>
                   <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">
                     <div className="flex items-center gap-2">

@@ -63,30 +63,24 @@ export default function FormCliente({ modoNuevo = false, redirectTo }: FormClien
         return;
       }
 
-      // Guardar el user_id siempre
       setUserId(user.id);
-
-      // Si es modo nuevo, solo establecer el email del usuario actual como valor por defecto
-      if (esModoNuevo) {
+      if (!esModoNuevo && !idClienteParam) {
         setEmail(user.email || "");
-        setCargando(false);
-        return;
       }
 
-      // Modo normal: cargar datos del cliente del usuario
-      setEmail(user.email || "");
-
       // buscar si el cliente ya tiene datos
-      const { data, error } = await supabase
-        .from("clientes")
-        .select("nombre, direccion, telefono")
-        .eq("user_id", user.id)
-        .single();
+      if (!esModoNuevo && !idClienteParam) {
+        const { data, error } = await supabase
+          .from("clientes")
+          .select("nombre, direccion, telefono")
+          .eq("user_id", user.id)
+          .single();
 
-      if (data && !error) {
-        setNombre(data.nombre || "");
-        setDireccion(data.direccion || "");
-        setTelefono(data.telefono || "");
+        if (data && !error) {
+          setNombre(data.nombre || "");
+          setDireccion(data.direccion || "");
+          setTelefono(data.telefono || "");
+        }
       }
 
       setCargando(false);
@@ -121,7 +115,7 @@ export default function FormCliente({ modoNuevo = false, redirectTo }: FormClien
         direccion,
         telefono,
         email,
-        user_id: userId, // Asignar el user_id del usuario que crea el cliente
+        user_id: userId,
       });
 
       if (error) {
@@ -130,31 +124,32 @@ export default function FormCliente({ modoNuevo = false, redirectTo }: FormClien
       }
 
       router.push(redirectTo || "/auth/rut-clientes/lista-clientes");
-    } else {
-      // Modo original: editar perfil del usuario actual
-      const { data: existente } = await supabase
-        .from("clientes")
-        .select("id")
-        .eq("user_id", userId)
-        .single();
-
-      if (existente) {
-        await supabase
-          .from("clientes")
-          .update({ nombre, direccion, telefono, email })
-          .eq("user_id", userId);
-      } else {
-        await supabase.from("clientes").insert({
-          nombre,
-          direccion,
-          telefono,
-          email,
-          user_id: userId,
-        });
-      }
-
-      router.push(redirectTo || "/protected");
+      return;
     }
+
+    // Intentar actualizar primero
+    const { data: existente } = await supabase
+      .from("clientes")
+      .select("id")
+      .eq("user_id", userId)
+      .single();
+
+    if (existente) {
+      await supabase
+        .from("clientes")
+        .update({ nombre, direccion, telefono, email })
+        .eq("user_id", userId);
+    } else {
+      await supabase.from("clientes").insert({
+        nombre,
+        direccion,
+        telefono,
+        email,
+        user_id: userId,
+      });
+    }
+
+    router.push(redirectTo || "/protected");
   };
 
   if (cargando) {
