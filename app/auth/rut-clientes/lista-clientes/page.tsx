@@ -1,6 +1,6 @@
 "use client";
 
-import HomeClientes from "@/components/clientes/homeclientes";
+import ListClientes from "@/components/clientes/listaclientes";
 
 
 
@@ -9,8 +9,8 @@ export default function Page() {
     <div className="flex min-h-screen w-full items-center justify-center p-6 md:p-10">
       <div className="w-full max-w-sm">
 
-   <HomeClientes />
-         
+        <ListClientes />
+
       </div>
     </div>
   );
