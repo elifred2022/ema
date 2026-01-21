@@ -6,6 +6,13 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Home, ShoppingCart, Loader2, Plus, Edit, Trash2, Eye, Printer } from "lucide-react";
 
+type ArticuloInfo = {
+  codint: string;
+  costo_compra: string;
+  porcentaje_aplicar: string;
+  precio_venta: string;
+};
+
 type Compras = {
   id: number;
   proveedor: string;
@@ -35,6 +42,7 @@ export default function ListaCompras() {
   const [fechaHasta, setFechaHasta] = useState("");
   const [busquedaProveedor, setBusquedaProveedor] = useState("");
   const [totalConsulta, setTotalConsulta] = useState(0);
+  const [articulosInfo, setArticulosInfo] = useState<Map<string, ArticuloInfo>>(new Map());
 
   const parseCurrency = (value: string | number | null | undefined) => {
     if (value === null || value === undefined) return 0;
@@ -71,6 +79,38 @@ export default function ListaCompras() {
   const toEndOfDayIso = (fecha: string) => {
     const date = new Date(`${fecha}T23:59:59.999`);
     return Number.isNaN(date.getTime()) ? null : date.toISOString();
+  };
+
+  const cargarArticulosInfo = async (codints: string[]) => {
+    if (codints.length === 0) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from("articulos")
+        .select("codint, costo_compra, porcentaje_aplicar, precio_venta")
+        .in("codint", codints);
+
+      if (error) {
+        console.error("Error al cargar información de artículos:", error);
+        return;
+      }
+
+      const infoMap = new Map<string, ArticuloInfo>();
+      (data || []).forEach((art) => {
+        if (art.codint) {
+          infoMap.set(art.codint, {
+            codint: art.codint,
+            costo_compra: art.costo_compra || "0.00",
+            porcentaje_aplicar: art.porcentaje_aplicar || "0",
+            precio_venta: art.precio_venta || "0.00",
+          });
+        }
+      });
+
+      setArticulosInfo(infoMap);
+    } catch (err) {
+      console.error("Error al cargar información de artículos:", err);
+    }
   };
 
   const cargarCompras = async (filtros?: { desde?: string; hasta?: string; proveedor?: string }) => {
@@ -117,6 +157,17 @@ export default function ListaCompras() {
         return acc + parseCurrency(compra.total || "0");
       }, 0);
       setTotalConsulta(suma);
+
+      // Cargar información de artículos únicos
+      const codintsUnicos = new Set<string>();
+      comprasParsed.forEach((compra) => {
+        compra.items?.forEach((item) => {
+          if (item.codint) {
+            codintsUnicos.add(item.codint);
+          }
+        });
+      });
+      await cargarArticulosInfo(Array.from(codintsUnicos));
     } catch (err) {
       setError("Error al cargar las compras");
       console.error(err);
@@ -432,23 +483,33 @@ export default function ListaCompras() {
                               </tr>
                             </thead>
                             <tbody>
-                              {compra.items.map((item, idx) => (
-                                <tr key={idx} className="border-b border-gray-200 dark:border-gray-700">
-                                  <td className="px-2 py-2 font-mono">{item.codint}</td>
-                                  <td className="px-2 py-2">
-                                    <div>
-                                      <div className="font-medium">{item.nombre_articulo}</div>
-                                      {item.descripcion && (
-                                        <div className="text-gray-500 text-xs">{item.descripcion}</div>
-                                      )}
-                                    </div>
-                                  </td>
-                                  <td className="px-2 py-2">{item.familia || "N/A"}</td>
-                                  <td className="px-2 py-2 text-right">{item.cant}</td>
-                                  <td className="px-2 py-2 text-right">${item.costo_compra || "0.00"}</td>
-                                  
-                                </tr>
-                              ))}
+                              {compra.items.map((item, idx) => {
+                                const articuloInfo = articulosInfo.get(item.codint);
+                                return (
+                                  <tr key={idx} className="border-b border-gray-200 dark:border-gray-700">
+                                    <td className="px-2 py-2 font-mono">{item.codint}</td>
+                                    <td className="px-2 py-2">
+                                      <div>
+                                        <div className="font-medium">{item.nombre_articulo}</div>
+                                        {item.descripcion && (
+                                          <div className="text-gray-500 text-xs">{item.descripcion}</div>
+                                        )}
+                                      </div>
+                                    </td>
+                                    <td className="px-2 py-2">{item.familia || "N/A"}</td>
+                                    <td className="px-2 py-2 text-right">{item.cant}</td>
+                                    <td className="px-2 py-2 text-right">
+                                      ${articuloInfo?.costo_compra || item.costo_compra || "0.00"}
+                                    </td>
+                                    <td className="px-2 py-2 text-right">
+                                      {articuloInfo?.porcentaje_aplicar || "0"}%
+                                    </td>
+                                    <td className="px-2 py-2 text-right">
+                                      ${articuloInfo?.precio_venta || "0.00"}
+                                    </td>
+                                  </tr>
+                                );
+                              })}
                             </tbody>
                           </table>
                         </div>

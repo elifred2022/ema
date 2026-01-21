@@ -37,47 +37,47 @@ export default function ListArticulos() {
   const [descontarArticulo, setDescontarArticulo] = useState<Articulo | null>(null);
   const [ocultarArticuloInactivo, setOcultarArticuloInactivo] = useState(false);
 
-    //variables ingreso y egreso articulos
-    const [ingresart, setIngresArt] = useState("");
-    const [descontart, setDescontArt] = useState(""); // este es cantretiro en registro de egreso
-    const [retira, setRetira] = useState("");
-   
-    const [motivo, setMotivo] = useState("");
-    const [nombreprov, setNombreprov] = useState("");
-    const [rto, setRto] = useState("");
-    const [fact, setFact] = useState("");
-    const [fecha_ent, setFecha_ent] = useState("");
-    const [observacion, setObservacion] = useState("");
-    
-      
-  
+  //variables ingreso y egreso articulos
+  const [ingresart, setIngresArt] = useState("");
+  const [descontart, setDescontArt] = useState(""); // este es cantretiro en registro de egreso
+  const [retira, setRetira] = useState("");
+
+  const [motivo, setMotivo] = useState("");
+  const [nombreprov, setNombreprov] = useState("");
+  const [rto, setRto] = useState("");
+  const [fact, setFact] = useState("");
+  const [fecha_ent, setFecha_ent] = useState("");
+  const [observacion, setObservacion] = useState("");
+
+
+
   const [formData, setFormData] = useState<Partial<Articulo>>({});
   const supabase = createClient();
 
-  
+
   /* para que no desactive checkbox al reset pagia  Al montar, leé localStorage (solo se ejecuta en el navegador) */
-    useEffect(() => {
-     const savedInactivo = localStorage.getItem("ocultarArticuloInactivo");
-     
-   
-     if (savedInactivo !== null) setOcultarArticuloInactivo(savedInactivo === "true");
-     
-   }, []);
-   
-   
-     /* Cada vez que cambia, actualizá localStorage */
-    useEffect(() => {
-     localStorage.setItem("ocultarArticuloInactivo", String(ocultarArticuloInactivo));
-   }, [ocultarArticuloInactivo]);
-   
- 
-   
+  useEffect(() => {
+    const savedInactivo = localStorage.getItem("ocultarArticuloInactivo");
+
+
+    if (savedInactivo !== null) setOcultarArticuloInactivo(savedInactivo === "true");
+
+  }, []);
+
+
+  /* Cada vez que cambia, actualizá localStorage */
+  useEffect(() => {
+    localStorage.setItem("ocultarArticuloInactivo", String(ocultarArticuloInactivo));
+  }, [ocultarArticuloInactivo]);
+
+
+
 
   // Cargar datos
   useEffect(() => {
     const fetchArticulos = async () => {
       const { data, error } = await supabase.from("articulos").select("*")
-  
+
       if (error) console.error("Error cargando articulos:", error);
       else setArticulos(data);
     };
@@ -90,112 +90,112 @@ export default function ListArticulos() {
 
 
   // funcion para formatear las fechas
- function formatDate(dateString: string | null): string {
-  if (!dateString) return "-";
+  function formatDate(dateString: string | null): string {
+    if (!dateString) return "-";
 
-  // Evitar que el navegador aplique zona horaria
-  const parts = dateString.split("T")[0].split("-");
-  const year = parseInt(parts[0]);
-  const month = parseInt(parts[1]) - 1; // meses en JS van de 0 a 11
-  const day = parseInt(parts[2]);
+    // Evitar que el navegador aplique zona horaria
+    const parts = dateString.split("T")[0].split("-");
+    const year = parseInt(parts[0]);
+    const month = parseInt(parts[1]) - 1; // meses en JS van de 0 a 11
+    const day = parseInt(parts[2]);
 
-  const date = new Date(year, month, day); // Esto crea la fecha en hora local
-  return date.toLocaleDateString("es-AR");
-}
+    const date = new Date(year, month, day); // Esto crea la fecha en hora local
+    return date.toLocaleDateString("es-AR");
+  }
 
-//Campos de tabla que son fecha para funcion filtrar
-const dateFields: (keyof Articulo)[] = [
-  "created_at",
-  
-];
+  //Campos de tabla que son fecha para funcion filtrar
+  const dateFields: (keyof Articulo)[] = [
+    "created_at",
 
-//Filtro que también contempla las fechas
-const filteredArticulos = articulos
-  .filter((articulo) => {
-    const s = search.trim().toLowerCase();   // la búsqueda, ya normalizada
-    if (!s) return true;                     // si el input está vacío, no filtra nada
+  ];
 
-    return Object.entries(articulo).some(([key, value]) => {
-      if (value === null || value === undefined) return false;
+  //Filtro que también contempla las fechas
+  const filteredArticulos = articulos
+    .filter((articulo) => {
+      const s = search.trim().toLowerCase();   // la búsqueda, ya normalizada
+      if (!s) return true;                     // si el input está vacío, no filtra nada
 
-      // A) Comparar contra la versión texto “tal cual viene”
-      if (String(value).toLowerCase().includes(s)) return true;
+      return Object.entries(articulo).some(([key, value]) => {
+        if (value === null || value === undefined) return false;
 
-      // B) Si el campo es fecha, probar otras representaciones
-      if (dateFields.includes(key as keyof Articulo)) {
-        const isoDate = String(value).split("T")[0];          // YYYY-MM-DD
-        const niceDate = formatDate(value as string);         // DD/MM/YYYY
+        // A) Comparar contra la versión texto “tal cual viene”
+        if (String(value).toLowerCase().includes(s)) return true;
 
-        return (
-          isoDate.toLowerCase().includes(s) ||
-          niceDate.toLowerCase().includes(s)
-        );
-      }
-      return false;
+        // B) Si el campo es fecha, probar otras representaciones
+        if (dateFields.includes(key as keyof Articulo)) {
+          const isoDate = String(value).split("T")[0];          // YYYY-MM-DD
+          const niceDate = formatDate(value as string);         // DD/MM/YYYY
+
+          return (
+            isoDate.toLowerCase().includes(s) ||
+            niceDate.toLowerCase().includes(s)
+          );
+        }
+        return false;
+      });
+    })
+    .filter((articulo) => {
+      if (ocultarArticuloInactivo && articulo.situacion === "inactivo") return false;
+
+      return true;
     });
-  })
-  .filter((articulo) => {
-  if (ocultarArticuloInactivo && articulo.situacion === "inactivo") return false;
-  
-  return true;
-});
 
-function renderValue(value: unknown): string {
-  if (
-    value === null ||
-    value === undefined ||
-    (typeof value === "string" && value.trim() === "") ||
-    value === ""
-  ) {
-    return "-";
+  function renderValue(value: unknown): string {
+    if (
+      value === null ||
+      value === undefined ||
+      (typeof value === "string" && value.trim() === "") ||
+      value === ""
+    ) {
+      return "-";
+    }
+
+    return String(value);
   }
 
-  return String(value);
-}
+  // Calcular automáticamente el precio de venta si cambia costo o porcentaje MODAL EDITAR
+  useEffect(() => {
+    const costo = parseFloat(formData.costo_compra ?? "0");
+    const porcentaje = parseFloat(formData.porcentaje_aplicar ?? "0");
 
-// Calcular automáticamente el precio de venta si cambia costo o porcentaje MODAL EDITAR
-useEffect(() => {
-  const costo = parseFloat(formData.costo_compra ?? "0");
-  const porcentaje = parseFloat(formData.porcentaje_aplicar ?? "0");
+    if (!isNaN(costo) && !isNaN(porcentaje)) {
+      const nuevoPrecio = costo * (1 + porcentaje / 100);
+      setFormData((prev) => ({
+        ...prev,
+        precio_venta: nuevoPrecio.toFixed(2),
+      }));
+    }
+  }, [formData.costo_compra, formData.porcentaje_aplicar]);
 
-  if (!isNaN(costo) && !isNaN(porcentaje)) {
-    const nuevoPrecio = costo * (1 + porcentaje / 100);
-    setFormData((prev) => ({
-      ...prev,
-      precio_venta: nuevoPrecio.toFixed(2),
-    }));
-  }
-}, [formData.costo_compra, formData.porcentaje_aplicar]);
+  // Calcular automáticamente el precio_venta en ingreso si cambia costo o porcentaje MODAL INGRESO ARTICULO
+  useEffect(() => {
+    if (!ingresarArticulo) return; // solo si hay modal abierto
 
-// Calcular automáticamente el precio_venta en ingreso si cambia costo o porcentaje MODAL INGRESO ARTICULO
-useEffect(() => {
-  if (!ingresarArticulo) return; // solo si hay modal abierto
+    const costo = parseFloat(formData.costo_compra ?? "0");
+    const porcentaje = parseFloat(formData.porcentaje_aplicar ?? "0");
 
-  const costo = parseFloat(formData.costo_compra ?? "0");
-  const porcentaje = parseFloat(formData.porcentaje_aplicar ?? "0");
-
-  if (!isNaN(costo) && !isNaN(porcentaje)) {
-    const nuevoPrecio = costo * (1 + porcentaje / 100);
-    setFormData((prev) => ({
-      ...prev,
-      precio_venta: nuevoPrecio.toFixed(2),
-    }));
-  }
-}, [formData.costo_compra, formData.porcentaje_aplicar, ingresarArticulo]);
+    if (!isNaN(costo) && !isNaN(porcentaje)) {
+      const nuevoPrecio = costo * (1 + porcentaje / 100);
+      setFormData((prev) => ({
+        ...prev,
+        precio_venta: nuevoPrecio.toFixed(2),
+      }));
+    }
+  }, [formData.costo_compra, formData.porcentaje_aplicar, ingresarArticulo]);
 
 
-const headerClass =
-  "px-4 py-3 border text-xs font-semibold bg-gradient-to-r from-indigo-600 to-purple-600 text-white whitespace-nowrap sticky top-0"; // ← evita saltos de línea y fija el encabezado
-const cellClass =
-  "px-4 py-3 border align-top text-sm text-justify whitespace-pre-wrap break-words bg-white dark:bg-gray-800";
+  const headerClass =
+    "px-4 py-3 border text-xs font-semibold bg-gradient-to-r from-indigo-600 to-purple-600 text-white whitespace-nowrap sticky top-0"; // ← evita saltos de línea y fija el encabezado
+  const cellClass =
+    "px-4 py-3 border align-top text-sm text-justify whitespace-pre-wrap break-words bg-white dark:bg-gray-800";
 
   return (
     <>
-    <div className="flex-2 w-full overflow-auto p-4 bg-gradient-to-b from-gray-50 to-white dark:from-gray-900 dark:to-gray-800 min-h-screen">
+      <div className="flex-2 w-full overflow-auto p-4 bg-gradient-to-b from-gray-50 to-white dark:from-gray-900 dark:to-gray-800 min-h-screen">
         {/* Header con navegación */}
         <div className="flex flex-wrap gap-4 items-center mb-6">
           <Link href="/protected">
-            <Button 
+            <Button
               variant="outline"
               className="flex items-center gap-2 border-2 hover:border-indigo-500 dark:hover:border-indigo-400 transition-all duration-300"
             >
@@ -204,7 +204,7 @@ const cellClass =
             </Button>
           </Link>
         </div>
-           
+
         {/* Título */}
         <div className="mb-6">
           <h1 className="text-3xl font-bold mb-2 bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
@@ -216,7 +216,7 @@ const cellClass =
         {/* Botón crear nuevo artículo */}
         <div className="flex flex-wrap gap-3 items-center mb-6">
           <Link href="/auth/rut-articulos/form-crear-articulo">
-            <Button 
+            <Button
               size="lg"
               className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-semibold px-6 py-6 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 flex items-center gap-3"
             >
@@ -225,7 +225,7 @@ const cellClass =
             </Button>
           </Link>
 
-        {/*
+          {/*
            <Link
               href="/auth/list-egresoart"
               className="inline-block px-4 py-2 mb-4 bg-white text-black font-semibold rounded-md shadow hover:bg-blue-700 transition-colors duration-200"
@@ -240,9 +240,9 @@ const cellClass =
               Registros de ingresos
             </Link>
         
-        */}   
+        */}
 
-        
+
         </div>
 
         {/* Filtros y búsqueda */}
@@ -271,168 +271,168 @@ const cellClass =
             </span>
           </label>
         </div>
-     
-      <div className="overflow-x-auto rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 max-h-[calc(100vh-300px)] overflow-y-auto">
-        <table className="min-w-full table-auto border-collapse">
-          <thead className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white sticky top-0 z-10">
-          <tr>
 
-           
-            <th  className={headerClass}>Accion</th>
-             <th  className={headerClass}>Id</th>
-             <th  className={headerClass}>Fecha de alta</th>
-              <th  className={headerClass}>Cod barra</th>
-            <th  className={headerClass}>Cod int</th>
-            <th  className={headerClass}>Articulo</th>
-            <th  className={headerClass}>Descripcion</th>
-            <th  className={headerClass}>Familia</th>
-            <th  className={headerClass}>Prov. sug.</th>
-            <th  className={headerClass}>Cod. porv. sug.</th>
-             <th  className={headerClass}>Costo de compra</th>
-             <th  className={headerClass}>Porcentaje aplicable</th>
-            <th  className={headerClass}>Precio de venta</th>
-             <th  className={headerClass}>Existencia</th>
-            <th  className={headerClass}>Situacion</th>       
-              
-          </tr>
-        </thead>
-        <tbody>
-          {filteredArticulos.map((articulo) => (
-            <tr key={articulo.id}>
-              <td className={cellClass}>
-                <div className="flex flex-nowrap gap-1 items-center">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="flex items-center justify-center border-green-500 text-green-700 hover:bg-green-50 dark:hover:bg-green-900/20 whitespace-nowrap p-2"
-                    title="Ingresar artículo"
-                    onClick={() => {
-                        setIngresArt(""); // limpiar antes de abrir
-                        setIngresarArticulo(articulo);
-                        setFormData({
-                        created_at: articulo.created_at,
-                        id: articulo.id,
-                        codint: articulo.codint,
-                        nombre_articulo: articulo.nombre_articulo,
-                        descripcion: articulo.descripcion,
-                        existencia: articulo.existencia,
-                        proveedor_sug: articulo.proveedor_sug,
-                        cod_proveedor: articulo.cod_proveedor,
-                        familia: articulo.familia,
-                        situacion: articulo.situacion,
-                        costo_compra: articulo.costo_compra,
-                        porcentaje_aplicar: articulo.porcentaje_aplicar,
-                        precio_venta: articulo.precio_venta,
-                       
+        <div className="overflow-x-auto rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 max-h-[calc(100vh-300px)] overflow-y-auto">
+          <table className="min-w-full table-auto border-collapse">
+            <thead className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white sticky top-0 z-10">
+              <tr>
 
-                      });
-                    }}
-                  >
-                    <ArrowUpCircle className="h-4 w-4" />
-                  </Button>
 
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="flex items-center justify-center border-orange-500 text-orange-700 hover:bg-orange-50 dark:hover:bg-orange-900/20 whitespace-nowrap p-2"
-                    title="Egresar artículo"
-                    onClick={() => {
-                      setDescontArt(""); // limpiar antes de abrir
-                      setDescontarArticulo(articulo);
-                      setFormData({
-                        created_at: articulo.created_at,
-                        id: articulo.id,
-                        codint: articulo.codint,
-                        nombre_articulo: articulo.nombre_articulo,
-                        descripcion: articulo.descripcion,
-                        existencia: articulo.existencia,
-                        proveedor_sug: articulo.proveedor_sug,
-                        cod_proveedor: articulo.cod_proveedor,
-                        familia: articulo.familia,
-                        situacion: articulo.situacion,
-                        costo_compra: articulo.costo_compra,
-                        porcentaje_aplicar: articulo.porcentaje_aplicar,
-                        precio_venta: articulo.precio_venta,
-                      });
-                    }}
-                  >
-                    <ArrowDownCircle className="h-4 w-4" />
-                  </Button>
+                <th className={headerClass}>Accion</th>
+                <th className={headerClass}>Id</th>
+                <th className={headerClass}>Fecha de alta</th>
+                <th className={headerClass}>Cod barra</th>
+                <th className={headerClass}>Cod int</th>
+                <th className={headerClass}>Articulo</th>
+                <th className={headerClass}>Descripcion</th>
+                <th className={headerClass}>Familia</th>
+                <th className={headerClass}>Prov. sug.</th>
+                <th className={headerClass}>Cod. porv. sug.</th>
+                <th className={headerClass}>Costo de compra</th>
+                <th className={headerClass}>Porcentaje aplicable</th>
+                <th className={headerClass}>Precio de venta</th>
+                <th className={headerClass}>Existencia</th>
+                <th className={headerClass}>Situacion</th>
 
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="flex items-center justify-center border-blue-500 text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-900/20 whitespace-nowrap p-2"
-                    title="Editar artículo"
-                    onClick={() => {
-                      setEditingArticulo(articulo);
-                      setFormData({
-                        created_at: articulo.created_at,
-                        id: articulo.id,
-                        codbar: articulo.codbar,
-                        codint: articulo.codint,
-                        nombre_articulo: articulo.nombre_articulo,
-                        descripcion: articulo.descripcion,
-                        existencia: articulo.existencia,
-                        proveedor_sug: articulo.proveedor_sug,
-                        cod_proveedor: articulo.cod_proveedor,
-                        familia: articulo.familia,
-                        situacion: articulo.situacion,
-                        costo_compra: articulo.costo_compra,
-                        porcentaje_aplicar: articulo.porcentaje_aplicar,
-                        precio_venta: articulo.precio_venta,
-                      });
-                    }}
-                  >
-                    <Edit className="h-4 w-4" />
-                  </Button>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredArticulos.map((articulo) => (
+                <tr key={articulo.id}>
+                  <td className={cellClass}>
+                    <div className="flex flex-nowrap gap-1 items-center">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="flex items-center justify-center border-green-500 text-green-700 hover:bg-green-50 dark:hover:bg-green-900/20 whitespace-nowrap p-2"
+                        title="Ingresar artículo"
+                        onClick={() => {
+                          setIngresArt(""); // limpiar antes de abrir
+                          setIngresarArticulo(articulo);
+                          setFormData({
+                            created_at: articulo.created_at,
+                            id: articulo.id,
+                            codint: articulo.codint,
+                            nombre_articulo: articulo.nombre_articulo,
+                            descripcion: articulo.descripcion,
+                            existencia: articulo.existencia,
+                            proveedor_sug: articulo.proveedor_sug,
+                            cod_proveedor: articulo.cod_proveedor,
+                            familia: articulo.familia,
+                            situacion: articulo.situacion,
+                            costo_compra: articulo.costo_compra,
+                            porcentaje_aplicar: articulo.porcentaje_aplicar,
+                            precio_venta: articulo.precio_venta,
 
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="flex items-center justify-center border-red-500 text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20 whitespace-nowrap p-2"
-                    title="Eliminar artículo"
-                    onClick={async () => {
-                      const confirm = window.confirm(
-                        `¿Estás seguro de que querés eliminar el articulo ${articulo.id} ${articulo.nombre_articulo} ?`
-                      );
-                      if (!confirm) return;
 
-                      const { error } = await supabase.from("articulos").delete().eq("id", articulo.id);
-                      if (error) {
-                        alert("Error al eliminar");
-                        console.error(error);
-                      } else {
-                        alert("articulo eliminado");
-                        const { data } = await supabase.from("articulos").select("*");
-                        if (data) setArticulos(data);
-                      }
-                    }}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
+                          });
+                        }}
+                      >
+                        <ArrowUpCircle className="h-4 w-4" />
+                      </Button>
 
-                  
-                </div></td>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="flex items-center justify-center border-orange-500 text-orange-700 hover:bg-orange-50 dark:hover:bg-orange-900/20 whitespace-nowrap p-2"
+                        title="Egresar artículo"
+                        onClick={() => {
+                          setDescontArt(""); // limpiar antes de abrir
+                          setDescontarArticulo(articulo);
+                          setFormData({
+                            created_at: articulo.created_at,
+                            id: articulo.id,
+                            codint: articulo.codint,
+                            nombre_articulo: articulo.nombre_articulo,
+                            descripcion: articulo.descripcion,
+                            existencia: articulo.existencia,
+                            proveedor_sug: articulo.proveedor_sug,
+                            cod_proveedor: articulo.cod_proveedor,
+                            familia: articulo.familia,
+                            situacion: articulo.situacion,
+                            costo_compra: articulo.costo_compra,
+                            porcentaje_aplicar: articulo.porcentaje_aplicar,
+                            precio_venta: articulo.precio_venta,
+                          });
+                        }}
+                      >
+                        <ArrowDownCircle className="h-4 w-4" />
+                      </Button>
 
-                <td className={cellClass}>{articulo.id}</td>
-              <td className={cellClass}>{formatDate(articulo.created_at) || "-"}</td>
-              <td className={cellClass}>{renderValue(articulo.codbar)}</td>
-              <td className={cellClass}>{renderValue(articulo.codint)}</td>
-                <td className={cellClass}>{articulo.nombre_articulo}</td>
-                <td className={cellClass}>{articulo.descripcion}</td>
-                <td className={cellClass}>{articulo.familia}</td>
-                <td className={cellClass}>{articulo.proveedor_sug}</td>
-                <td className={cellClass}>{articulo.cod_proveedor}</td>
-                <td className={cellClass}>{renderValue(articulo.costo_compra)}</td>
-                <td className={cellClass}>{articulo.porcentaje_aplicar}</td>
-                <td className={cellClass}>{articulo.precio_venta}</td>
-                <td className={cellClass}>{articulo.existencia}</td>
-                <td className={cellClass}>{articulo.situacion}</td>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="flex items-center justify-center border-blue-500 text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-900/20 whitespace-nowrap p-2"
+                        title="Editar artículo"
+                        onClick={() => {
+                          setEditingArticulo(articulo);
+                          setFormData({
+                            created_at: articulo.created_at,
+                            id: articulo.id,
+                            codbar: articulo.codbar,
+                            codint: articulo.codint,
+                            nombre_articulo: articulo.nombre_articulo,
+                            descripcion: articulo.descripcion,
+                            existencia: articulo.existencia,
+                            proveedor_sug: articulo.proveedor_sug,
+                            cod_proveedor: articulo.cod_proveedor,
+                            familia: articulo.familia,
+                            situacion: articulo.situacion,
+                            costo_compra: articulo.costo_compra,
+                            porcentaje_aplicar: articulo.porcentaje_aplicar,
+                            precio_venta: articulo.precio_venta,
+                          });
+                        }}
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
 
-            </tr>
-          ))}
-        </tbody>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="flex items-center justify-center border-red-500 text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20 whitespace-nowrap p-2"
+                        title="Eliminar artículo"
+                        onClick={async () => {
+                          const confirm = window.confirm(
+                            `¿Estás seguro de que querés eliminar el articulo ${articulo.id} ${articulo.nombre_articulo} ?`
+                          );
+                          if (!confirm) return;
+
+                          const { error } = await supabase.from("articulos").delete().eq("id", articulo.id);
+                          if (error) {
+                            alert("Error al eliminar");
+                            console.error(error);
+                          } else {
+                            alert("articulo eliminado");
+                            const { data } = await supabase.from("articulos").select("*");
+                            if (data) setArticulos(data);
+                          }
+                        }}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+
+
+                    </div></td>
+
+                  <td className={cellClass}>{articulo.id}</td>
+                  <td className={cellClass}>{formatDate(articulo.created_at) || "-"}</td>
+                  <td className={cellClass}>{renderValue(articulo.codbar)}</td>
+                  <td className={cellClass}>{renderValue(articulo.codint)}</td>
+                  <td className={cellClass}>{articulo.nombre_articulo}</td>
+                  <td className={cellClass}>{articulo.descripcion}</td>
+                  <td className={cellClass}>{articulo.familia}</td>
+                  <td className={cellClass}>{articulo.proveedor_sug}</td>
+                  <td className={cellClass}>{articulo.cod_proveedor}</td>
+                  <td className={cellClass}>{renderValue(articulo.costo_compra)}</td>
+                  <td className={cellClass}>{articulo.porcentaje_aplicar}</td>
+                  <td className={cellClass}>{articulo.precio_venta}</td>
+                  <td className={cellClass}>{articulo.existencia}</td>
+                  <td className={cellClass}>{articulo.situacion}</td>
+
+                </tr>
+              ))}
+            </tbody>
           </table>
         </div>
       </div>
@@ -455,16 +455,16 @@ const cellClass =
                 <X className="h-5 w-5" />
               </Button>
             </div>
-           
-            
-            
+
+
+
             <div className="mb-6 p-4 bg-indigo-50 dark:bg-indigo-900/20 rounded-lg">
               <span className="text-indigo-700 dark:text-indigo-300 font-semibold">
                 Artículo: {editingArticulo.nombre_articulo}
               </span>
             </div>
 
-            
+
             <label className="block mb-4">
               <p className="text-gray-700 dark:text-gray-300 font-medium mb-2">Artículo</p>
               <Input
@@ -472,7 +472,7 @@ const cellClass =
                 type="text"
                 value={formData.nombre_articulo ?? ""}
                 onChange={(e) =>
-                  setFormData({ ...formData, nombre_articulo: e.target.value})
+                  setFormData({ ...formData, nombre_articulo: e.target.value })
                 }
               />
             </label>
@@ -485,7 +485,7 @@ const cellClass =
                   type="text"
                   value={formData.codbar ?? ""}
                   onChange={(e) =>
-                    setFormData({ ...formData, codbar: e.target.value})
+                    setFormData({ ...formData, codbar: e.target.value })
                   }
                 />
               </label>
@@ -497,7 +497,7 @@ const cellClass =
                   type="text"
                   value={formData.codint ?? ""}
                   onChange={(e) =>
-                    setFormData({ ...formData, codint: e.target.value})
+                    setFormData({ ...formData, codint: e.target.value })
                   }
                 />
               </label>
@@ -510,7 +510,7 @@ const cellClass =
                 type="text"
                 value={formData.descripcion ?? ""}
                 onChange={(e) =>
-                  setFormData({ ...formData, descripcion: e.target.value})
+                  setFormData({ ...formData, descripcion: e.target.value })
                 }
               />
             </label>
@@ -522,7 +522,7 @@ const cellClass =
                 type="text"
                 value={formData.familia ?? ""}
                 onChange={(e) =>
-                  setFormData({ ...formData, familia: e.target.value})
+                  setFormData({ ...formData, familia: e.target.value })
                 }
               />
             </label>
@@ -535,7 +535,7 @@ const cellClass =
                   type="text"
                   value={formData.proveedor_sug ?? ""}
                   onChange={(e) =>
-                    setFormData({ ...formData, proveedor_sug: e.target.value})
+                    setFormData({ ...formData, proveedor_sug: e.target.value })
                   }
                 />
               </label>
@@ -547,7 +547,7 @@ const cellClass =
                   type="text"
                   value={formData.cod_proveedor ?? ""}
                   onChange={(e) =>
-                    setFormData({ ...formData, cod_proveedor: e.target.value})
+                    setFormData({ ...formData, cod_proveedor: e.target.value })
                   }
                 />
               </label>
@@ -561,7 +561,7 @@ const cellClass =
                   type="number"
                   value={formData.costo_compra ?? ""}
                   onChange={(e) =>
-                    setFormData({ ...formData, costo_compra: e.target.value})
+                    setFormData({ ...formData, costo_compra: e.target.value })
                   }
                 />
               </label>
@@ -573,7 +573,7 @@ const cellClass =
                   type="number"
                   value={formData.porcentaje_aplicar ?? ""}
                   onChange={(e) =>
-                    setFormData({ ...formData, porcentaje_aplicar: e.target.value})
+                    setFormData({ ...formData, porcentaje_aplicar: e.target.value })
                   }
                 />
               </label>
@@ -597,7 +597,7 @@ const cellClass =
                   type="text"
                   value={formData.existencia ?? ""}
                   onChange={(e) =>
-                    setFormData({ ...formData, existencia: e.target.value})
+                    setFormData({ ...formData, existencia: e.target.value })
                   }
                 />
               </label>
@@ -629,42 +629,56 @@ const cellClass =
               </Button>
               <Button
                 onClick={async () => {
-                      if (
-                        formData.costo_compra === undefined ||
-                        formData.costo_compra === null ||
-                        formData.costo_compra.toString().trim() === ""
-                      ) {
-                        alert("El campo 'Costo de compra' no puede estar vacío. Si no tiene valor, usá 0.");
-                        return;
-                      }
+                  if (
+                    formData.costo_compra === undefined ||
+                    formData.costo_compra === null ||
+                    formData.costo_compra.toString().trim() === ""
+                  ) {
+                    alert("El campo 'Costo de compra' no puede estar vacío. Si no tiene valor, usá 0.");
+                    return;
+                  }
 
-                      const { error } = await supabase
-                        .from("articulos")
-                        .update(formData)
-                        .eq("id", editingArticulo.id);
+                  // Recalcular precio de venta antes de guardar
+                  const costo = parseFloat(formData.costo_compra ?? "0");
+                  const porcentaje = parseFloat(formData.porcentaje_aplicar ?? "0");
+                  let precioVentaCalculado = formData.precio_venta;
 
-                      if (error) {
-                        alert("Error actualizando");
-                        console.error(error);
-                      } else {
-                        alert("Actualizado correctamente");
-                        setEditingArticulo(null);
-                        setFormData({});
-                        const { data } = await supabase.from("articulos").select("*");
-                        if (data) setArticulos(data);
-                      }
-                    }}
-                    className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 flex items-center gap-2"
-                  >
-                    <Save className="h-4 w-4" />
-                    Guardar
-                  </Button>
+                  if (!isNaN(costo) && !isNaN(porcentaje) && costo > 0 && porcentaje >= 0) {
+                    precioVentaCalculado = (costo * (1 + porcentaje / 100)).toFixed(2);
+                  }
+
+                  const datosActualizados = {
+                    ...formData,
+                    precio_venta: precioVentaCalculado,
+                  };
+
+                  const { error } = await supabase
+                    .from("articulos")
+                    .update(datosActualizados)
+                    .eq("id", editingArticulo.id);
+
+                  if (error) {
+                    alert("Error actualizando");
+                    console.error(error);
+                  } else {
+                    alert("Actualizado correctamente");
+                    setEditingArticulo(null);
+                    setFormData({});
+                    const { data } = await supabase.from("articulos").select("*");
+                    if (data) setArticulos(data);
+                  }
+                }}
+                className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 flex items-center gap-2"
+              >
+                <Save className="h-4 w-4" />
+                Guardar
+              </Button>
             </div>
           </div>
         </div>
       )}
-        
-       {ingresarArticulo && (
+
+      {ingresarArticulo && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50 backdrop-blur-sm">
           <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-2xl w-full max-w-md max-h-screen overflow-y-auto border border-gray-200 dark:border-gray-700">
             <div className="flex justify-between items-center mb-6">
@@ -682,7 +696,7 @@ const cellClass =
             </div>
 
             <div className="mb-6 p-4 bg-green-50 dark:bg-green-900/20 rounded-lg grid grid-cols-2 gap-3">
-            <div>
+              <div>
                 <span className="block text-xs font-semibold text-gray-600 dark:text-gray-400">Código:</span>
                 <span className="text-gray-800 dark:text-gray-200 font-medium">{ingresarArticulo.codbar}</span>
               </div>
@@ -815,7 +829,7 @@ const cellClass =
             </div>
 
 
-                    
+
 
 
             <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-gray-200 dark:border-gray-700">
@@ -829,47 +843,47 @@ const cellClass =
               </Button>
               <Button
                 onClick={async () => {
-                    const cantExist = Number(ingresarArticulo.existencia ?? 0);
-                    const cantIngreso = Number(ingresart ?? 0);
+                  const cantExist = Number(ingresarArticulo.existencia ?? 0);
+                  const cantIngreso = Number(ingresart ?? 0);
 
-                    if (cantIngreso <= 0) {
-                      alert("La cantidad a ingresar debe ser mayor a 0");
-                      return;
-                    }
+                  if (cantIngreso <= 0) {
+                    alert("La cantidad a ingresar debe ser mayor a 0");
+                    return;
+                  }
 
-                    if (nombreprov.trim() === "") {
-                      alert("El campo Proveedor no puede estar vacío");
-                      return;
-                    }
+                  if (nombreprov.trim() === "") {
+                    alert("El campo Proveedor no puede estar vacío");
+                    return;
+                  }
 
-                    if (fact.trim() === "") {
-                      alert("El campo Factura (Fact.) no puede estar vacío");
-                      return;
-                    }
+                  if (fact.trim() === "") {
+                    alert("El campo Factura (Fact.) no puede estar vacío");
+                    return;
+                  }
 
-                    if (rto.trim() === "") {
-                      alert("El campo Remito (Rto.) no puede estar vacío");
-                      return;
-                    }
+                  if (rto.trim() === "") {
+                    alert("El campo Remito (Rto.) no puede estar vacío");
+                    return;
+                  }
 
-                    if (fecha_ent.trim() === "") {
-                      alert("Falta fecha de ingreso");
-                      return;
-                    }
+                  if (fecha_ent.trim() === "") {
+                    alert("Falta fecha de ingreso");
+                    return;
+                  }
 
-                    if (observacion.trim() === "") {
-                      alert("Fue observado si o no?");
-                      return;
-                    }
+                  if (observacion.trim() === "") {
+                    alert("Fue observado si o no?");
+                    return;
+                  }
 
-                   
-                    const nuevaExistencia = cantExist + cantIngreso;
 
-                  
+                  const nuevaExistencia = cantExist + cantIngreso;
 
-                    // 1. Actualizar existencia y precio venta en tabla articulos
-                   
-                    const { error: updateError } = await supabase
+
+
+                  // 1. Actualizar existencia y precio venta en tabla articulos
+
+                  const { error: updateError } = await supabase
                     .from("articulos")
                     .update({
                       existencia: nuevaExistencia,
@@ -879,16 +893,16 @@ const cellClass =
                     })
                     .eq("id", ingresarArticulo.id);
 
-                    if (updateError) {
-                      alert("Error al actualizar el stock y precio de venta");
-                      console.error(updateError);
-                      return;
-                    }
+                  if (updateError) {
+                    alert("Error al actualizar el stock y precio de venta");
+                    console.error(updateError);
+                    return;
+                  }
 
-                    
 
-                    // 2. Insertar en ingarticulos
-                    const { error: insertError } = await supabase.from("ingarticulos").insert({
+
+                  // 2. Insertar en ingarticulos
+                  const { error: insertError } = await supabase.from("ingarticulos").insert({
                     codint: ingresarArticulo.codint,
                     codbar: ingresarArticulo.codbar,
                     nombre_articulo: ingresarArticulo.nombre_articulo,
@@ -900,26 +914,26 @@ const cellClass =
                     fecha_ent,
                     observacion,
 
-                    });
+                  });
 
-                    if (insertError) {
+                  if (insertError) {
                     alert("Stock actualizado, pero error al guardar el ingreso.");
                     console.error(insertError);
-                    } else {
+                  } else {
                     alert("Ingreso registrado correctamente");
-                    }
+                  }
 
-                    setIngresarArticulo(null);
-                    setFormData({});
-                    setNombreprov("");
-                    setFact("");
-                    setRto("");
-                    setIngresArt("");
-                    setFecha_ent("");
-                    setObservacion("");
+                  setIngresarArticulo(null);
+                  setFormData({});
+                  setNombreprov("");
+                  setFact("");
+                  setRto("");
+                  setIngresArt("");
+                  setFecha_ent("");
+                  setObservacion("");
 
-                    const { data } = await supabase.from("articulos").select("*");
-                    if (data) setArticulos(data);
+                  const { data } = await supabase.from("articulos").select("*");
+                  if (data) setArticulos(data);
                 }}
                 className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 flex items-center gap-2"
               >
@@ -929,8 +943,8 @@ const cellClass =
             </div>
           </div>
         </div>
-      )} 
-       {descontarArticulo && (
+      )}
+      {descontarArticulo && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50 backdrop-blur-sm">
           <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-2xl w-full max-w-md max-h-screen overflow-y-auto border border-gray-200 dark:border-gray-700">
             <div className="flex justify-between items-center mb-6">
@@ -946,7 +960,7 @@ const cellClass =
                 <X className="h-5 w-5" />
               </Button>
             </div>
-            
+
             <div className="mb-6 p-4 bg-orange-50 dark:bg-orange-900/20 rounded-lg grid grid-cols-2 gap-3">
               <div>
                 <span className="block text-xs font-semibold text-gray-600 dark:text-gray-400">Código:</span>
@@ -999,7 +1013,7 @@ const cellClass =
                 />
               </label>
             </div>
-             
+
 
             <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-gray-200 dark:border-gray-700">
               <Button
@@ -1012,77 +1026,77 @@ const cellClass =
               </Button>
               <Button
                 onClick={async () => {
-                    const cantExist = Number(descontarArticulo.existencia ?? 0);
-                    const cantEgreso = Number(descontart ?? 0);
+                  const cantExist = Number(descontarArticulo.existencia ?? 0);
+                  const cantEgreso = Number(descontart ?? 0);
 
-                     if (cantEgreso <= 0) {
+                  if (cantEgreso <= 0) {
                     alert("La cantidad a descontar debe ser mayor a 0");
                     return;
-                    }
+                  }
 
-                     if (cantEgreso > cantExist) {
+                  if (cantEgreso > cantExist) {
                     alert("No hay suficiente stock para realizar el egreso");
                     return;
-                    }
+                  }
 
-                     if (retira.trim() === "") {
-                      alert("El campo Retira no puede estar vacío");
-                      return;
-                    }
+                  if (retira.trim() === "") {
+                    alert("El campo Retira no puede estar vacío");
+                    return;
+                  }
 
-                     if (motivo.trim() === "") {
-                      alert("El campo motivo no puede estar vacío");
-                      return;
-                    }
+                  if (motivo.trim() === "") {
+                    alert("El campo motivo no puede estar vacío");
+                    return;
+                  }
 
-                  
 
-                   
 
-                    const nuevaExistencia = cantExist - cantEgreso;
 
-                    // 1. Actualizar existencia
-                    const { error: updateError } = await supabase
+
+                  const nuevaExistencia = cantExist - cantEgreso;
+
+                  // 1. Actualizar existencia
+                  const { error: updateError } = await supabase
                     .from("articulos")
                     .update({ existencia: nuevaExistencia })
                     .eq("id", descontarArticulo.id);
 
-                    if (updateError) {
+                  if (updateError) {
                     alert("Error al actualizar el stock");
                     console.error(updateError);
                     return;
-                    }
+                  }
 
-                      // 2. Insertar en egarticulos
+                  // 2. Insertar en egarticulos
 
-                const { error: insertError } = await supabase.from("egarticulos").insert({
+                  const { error: insertError } = await supabase.from("egarticulos").insert({
                     codint: descontarArticulo.codint,
                     nombre_articulo: descontarArticulo.nombre_articulo,
                     descripcion: descontarArticulo.descripcion,
                     descontart: cantEgreso,
                     retira,
                     motivo,
-                 
-                    });
 
-                    if (insertError) {
+                  });
+
+                  if (insertError) {
                     alert("Stock actualizado, pero error al guardar el egreso.");
                     console.error(insertError);
-                    } else {
+                  } else {
                     alert("Egreso registrado correctamente");
-                    }
+                  }
 
-                    setDescontarArticulo(null);
-                    setFormData({});
-                    setRetira("");
-                    setMotivo("");
-                    setDescontArt("");
+                  setDescontarArticulo(null);
+                  setFormData({});
+                  setRetira("");
+                  setMotivo("");
+                  setDescontArt("");
 
-                  
-                    
 
-                    const { data } = await supabase.from("articulos").select("*");
-                    if (data) setArticulos(data);
+
+
+                  const { data } = await supabase.from("articulos").select("*");
+                  if (data) setArticulos(data);
                 }}
                 className="bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-700 hover:to-red-700 flex items-center gap-2"
               >

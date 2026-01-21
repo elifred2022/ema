@@ -19,6 +19,9 @@ type ItemCompra = {
   familia: string;
   cant: number;
   costo_compra: string;
+  descuento?: string; // Porcentaje de descuento
+  costo_unit_neto?: string; // Costo unitario después del descuento
+  otros_cargos_item?: string; // Prorrateo de impuestos y otros cargos por item
   articulo_id?: string; // ID del artículo en la tabla articulos
 };
 
@@ -54,9 +57,19 @@ export default function CompraForm() {
   const [busquedaArticulo, setBusquedaArticulo] = useState("");
   const [codbarScan, setCodbarScan] = useState("");
   const [numeroFactura, setNumeroFactura] = useState("");
+  const [impuestos, setImpuestos] = useState("");
+  const [otrosCargos, setOtrosCargos] = useState("");
 
   const idCompraParam = searchParams.get("id");
   const esModoNuevo = searchParams.get("nuevo") === "true" || !idCompraParam;
+
+  // Calcular costo unitario neto
+  const calcularCostoUnitNeto = (costoUnit: string, descuento: string) => {
+    const costo = parseFloat(costoUnit) || 0;
+    const desc = parseFloat(descuento) || 0;
+    const costoNeto = costo - (costo * desc / 100);
+    return costoNeto.toFixed(2);
+  };
 
   // Cargar proveedores, artículos y datos de compra si existe
   useEffect(() => {
@@ -93,22 +106,33 @@ export default function CompraForm() {
             setCompraId(id);
             const { data: compraData, error: compraError } = await supabase
               .from("compras")
-              .select("id, proveedor, items, total")
+              .select("id, proveedor, items, total, impuestos, otros_cargos")
               .eq("id", id)
               .single();
 
             if (compraData && !compraError) {
               setProveedor(compraData.proveedor || "");
+              setImpuestos(compraData.impuestos || "");
+              setOtrosCargos(compraData.otros_cargos || "");
               // Parsear items si vienen como string JSON
               const itemsParsed = typeof compraData.items === 'string'
                 ? JSON.parse(compraData.items)
                 : compraData.items;
-              // Agregar IDs únicos a los items si no los tienen
-              const itemsConIds = (itemsParsed || []).map((item: ItemCompra) => ({
-                ...item,
-                id: item.id || `item-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-              }));
+              // Agregar IDs únicos a los items si no los tienen y asegurar campos de descuento
+              const itemsConIds = (itemsParsed || []).map((item: ItemCompra) => {
+                const descuento = item.descuento || "0";
+                const costoUnit = item.costo_compra || "0";
+                const costoNeto = calcularCostoUnitNeto(costoUnit, descuento);
+                return {
+                  ...item,
+                  id: item.id || `item-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+                  descuento: descuento,
+                  costo_unit_neto: costoNeto,
+                  otros_cargos_item: item.otros_cargos_item || "0.00",
+                };
+              });
               setItems(itemsConIds);
+              // Los prorrateos se calcularán después con el useEffect
             }
           }
         }
@@ -123,26 +147,109 @@ export default function CompraForm() {
     cargarDatos();
   }, [supabase, idCompraParam]);
 
-  // Calcular total
-  const calcularTotal = () => {
+  // Actualizar prorrateos cuando cambien los impuestos, otros cargos o items
+  useEffect(() => {
+    if (items.length > 0) {
+      const impuestosValor = parseFloat(impuestos) || 0;
+      const otrosCargosValor = parseFloat(otrosCargos) || 0;
+      const totalAProrratear = impuestosValor + otrosCargosValor;
+      const cantidadTotal = items.reduce((sum, item) => sum + (item.cant || 0), 0);
+
+      if (cantidadTotal > 0) {
+        const prorrateoPorUnidad = totalAProrratear / cantidadTotal;
+        setItems((prevItems) => {
+          let necesitaActualizacion = false;
+          const itemsActualizados = prevItems.map((item) => {
+            const costoUnit = parseFloat(item.costo_compra) || 0;
+            const descuento = parseFloat(item.descuento || "0") || 0;
+            const cantidad = item.cant || 0;
+
+            // Calcular prorrateo
+            const prorrateo = prorrateoPorUnidad * cantidad;
+            const nuevoProrrateo = prorrateo.toFixed(2);
+
+            // Calcular costo unitario neto con otros cargos
+            const costoUnitConDescuento = costoUnit - (costoUnit * descuento / 100);
+            const otrosCargosUnit = cantidad > 0 ? prorrateo / cantidad : 0;
+            const nuevoCostoUnitNeto = (costoUnitConDescuento + otrosCargosUnit).toFixed(2);
+
+            const haCambiadoProrrateo = item.otros_cargos_item !== nuevoProrrateo;
+            const haCambiadoCostoNeto = item.costo_unit_neto !== nuevoCostoUnitNeto;
+
+            if (haCambiadoProrrateo || haCambiadoCostoNeto) {
+              necesitaActualizacion = true;
+              return {
+                ...item,
+                otros_cargos_item: nuevoProrrateo,
+                costo_unit_neto: nuevoCostoUnitNeto,
+              };
+            }
+            return item;
+          });
+          return necesitaActualizacion ? itemsActualizados : prevItems;
+        });
+      } else {
+        // Si no hay cantidad total, poner otros_cargos_item en 0 y recalcular costo_unit_neto sin otros cargos
+        setItems((prevItems) => {
+          const tieneProrrateos = prevItems.some(item => item.otros_cargos_item !== "0.00" && item.otros_cargos_item);
+          if (tieneProrrateos) {
+            return prevItems.map((item) => {
+              const costoUnit = parseFloat(item.costo_compra) || 0;
+              const descuento = parseFloat(item.descuento || "0") || 0;
+              const costoUnitConDescuento = costoUnit - (costoUnit * descuento / 100);
+              return {
+                ...item,
+                otros_cargos_item: "0.00",
+                costo_unit_neto: costoUnitConDescuento.toFixed(2),
+              };
+            });
+          }
+          return prevItems;
+        });
+      }
+    }
+  }, [impuestos, otrosCargos, items.length, items.map(i => `${i.id}-${i.cant}-${i.costo_compra}-${i.descuento}`).join(',')]);
+
+  // Calcular subtotal (incluye prorrateo de impuestos y otros cargos)
+  const calcularSubtotal = () => {
     return items.reduce((sum, item) => {
-      const costo = parseFloat(item.costo_compra) || 0;
+      const costoUnit = parseFloat(item.costo_compra) || 0;
+      const descuento = parseFloat(item.descuento || "0") || 0;
+      const costoNeto = costoUnit - (costoUnit * descuento / 100);
       const cantidad = item.cant || 0;
-      return sum + costo * cantidad;
+      const otrosCargosItem = parseFloat(item.otros_cargos_item || "0") || 0;
+      return sum + (costoNeto * cantidad) + otrosCargosItem;
     }, 0);
+  };
+
+  // Calcular total (el subtotal ya incluye los prorrateos)
+  const calcularTotal = () => {
+    return calcularSubtotal();
   };
 
   // Eliminar item
   const eliminarItem = (itemId: string) => {
-    setItems(items.filter((item) => item.id !== itemId));
+    const nuevosItems = items.filter((item) => item.id !== itemId);
+    setItems(nuevosItems);
+    // Los prorrateos se actualizarán automáticamente con el useEffect
   };
 
   // Actualizar item
   const actualizarItem = (itemId: string, campo: keyof ItemCompra, valor: string | number) => {
-    const nuevosItems = items.map((item) =>
-      item.id === itemId ? { ...item, [campo]: valor } : item
+    setItems((prevItems) =>
+      prevItems.map((item) =>
+        item.id === itemId ? { ...item, [campo]: valor } : item
+      )
     );
-    setItems(nuevosItems);
+  };
+
+  // Actualizar múltiples campos de un item a la vez
+  const actualizarItemMultiple = (itemId: string, campos: Partial<ItemCompra>) => {
+    setItems((prevItems) =>
+      prevItems.map((item) =>
+        item.id === itemId ? { ...item, ...campos } : item
+      )
+    );
   };
 
   // Buscar artículo por código o nombre
@@ -176,6 +283,9 @@ export default function CompraForm() {
         familia: articulo.familia || "",
         cant: 1,
         costo_compra: articulo.costo_compra || "0.00",
+        descuento: "0",
+        costo_unit_neto: articulo.costo_compra || "0.00",
+        otros_cargos_item: "0.00",
         articulo_id: articulo.id,
       };
       setItems([...items, nuevoItem]);
@@ -284,7 +394,7 @@ export default function CompraForm() {
 
           const { data: articuloActual, error: fetchArticuloError } = await supabase
             .from("articulos")
-            .select("id, existencia")
+            .select("id, existencia, porcentaje_aplicar")
             .match(filtroArticulo)
             .single();
 
@@ -300,12 +410,28 @@ export default function CompraForm() {
           const cantidadComprada = item.cant || 0;
           const nuevaExistencia = existenciaActual + cantidadComprada;
 
+          // Calcular nuevo precio de venta usando el porcentaje aplicable existente
+          const nuevoCostoCompra = parseFloat(item.costo_unit_neto || "0");
+          const porcentajeAplicar = parseFloat(articuloActual.porcentaje_aplicar || "0");
+          let nuevoPrecioVenta = "";
+
+          if (!isNaN(nuevoCostoCompra) && !isNaN(porcentajeAplicar) && nuevoCostoCompra > 0) {
+            nuevoPrecioVenta = (nuevoCostoCompra * (1 + porcentajeAplicar / 100)).toFixed(2);
+          }
+
+          const datosActualizar: any = {
+            existencia: nuevaExistencia.toString(),
+            costo_compra: item.costo_unit_neto,
+          };
+
+          // Solo actualizar precio_venta si se pudo calcular
+          if (nuevoPrecioVenta) {
+            datosActualizar.precio_venta = nuevoPrecioVenta;
+          }
+
           const { error: updateStockError } = await supabase
             .from("articulos")
-            .update({
-              existencia: nuevaExistencia.toString(),
-              costo_compra: item.costo_compra,
-            })
+            .update(datosActualizar)
             .eq("id", articuloActual.id);
 
           if (updateStockError) {
@@ -335,8 +461,6 @@ export default function CompraForm() {
       </div>
     );
   }
-
-  const total = calcularTotal();
 
   return (
     <div className="w-full max-w-6xl mx-auto p-6 space-y-6">
@@ -511,6 +635,18 @@ export default function CompraForm() {
                         Costo Unit.
                       </th>
                       <th className="text-right py-3 px-4 text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
+                        Descuento %
+                      </th>
+                      <th className="text-right py-3 px-4 text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
+                        Costo Unit. con Descuento
+                      </th>
+                      <th className="text-right py-3 px-4 text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
+                        Otros Cargos por und
+                      </th>
+                      <th className="text-right py-3 px-4 text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
+                        Costo Unit. Neto
+                      </th>
+                      <th className="text-right py-3 px-4 text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
                         Subtotal
                       </th>
                       <th className="text-center py-3 px-4 text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
@@ -526,15 +662,21 @@ export default function CompraForm() {
                       const stockDisponible = articuloActual
                         ? parseFloat(articuloActual.existencia) || 0
                         : 0;
-                      const subtotal =
-                        (parseFloat(item.costo_compra) || 0) * (item.cant || 0);
+                      const costoUnit = parseFloat(item.costo_compra) || 0;
+                      const descuento = parseFloat(item.descuento || "0") || 0;
+                      const otrosCargosItem = parseFloat(item.otros_cargos_item || "0") || 0;
+                      const cantidad = item.cant || 0;
+                      const costoUnitConDescuento = costoUnit - (costoUnit * descuento / 100);
+                      const otrosCargosUnit = cantidad > 0 ? otrosCargosItem / cantidad : 0;
+                      const costoUnitNeto = costoUnitConDescuento + otrosCargosUnit;
+                      const subtotal = costoUnitNeto * cantidad;
 
                       return (
                         <tr
                           key={item.id}
                           className={`hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors ${index % 2 === 0
-                              ? "bg-white dark:bg-gray-800"
-                              : "bg-gray-50/50 dark:bg-gray-800/50"
+                            ? "bg-white dark:bg-gray-800"
+                            : "bg-gray-50/50 dark:bg-gray-800/50"
                             }`}
                         >
                           <td className="py-3 px-4">
@@ -564,10 +706,10 @@ export default function CompraForm() {
                           <td className="py-3 px-4 text-center">
                             <span
                               className={`text-sm font-semibold px-2 py-1 rounded ${stockDisponible > 10
-                                  ? "text-green-700 bg-green-100 dark:text-green-400 dark:bg-green-900/30"
-                                  : stockDisponible > 0
-                                    ? "text-yellow-700 bg-yellow-100 dark:text-yellow-400 dark:bg-yellow-900/30"
-                                    : "text-gray-700 bg-gray-100 dark:text-gray-400 dark:bg-gray-900/30"
+                                ? "text-green-700 bg-green-100 dark:text-green-400 dark:bg-green-900/30"
+                                : stockDisponible > 0
+                                  ? "text-yellow-700 bg-yellow-100 dark:text-yellow-400 dark:bg-yellow-900/30"
+                                  : "text-gray-700 bg-gray-100 dark:text-gray-400 dark:bg-gray-900/30"
                                 }`}
                             >
                               {stockDisponible}
@@ -594,16 +736,92 @@ export default function CompraForm() {
                               <Input
                                 type="text"
                                 inputMode="decimal"
-                                value={item.costo_compra}
+                                value={item.costo_compra || ""}
                                 onChange={(e) => {
-                                  const value = e.target.value.replace(",", ".");
-                                  if (/^\d*\.?\d*$/.test(value)) {
-                                    actualizarItem(item.id!, "costo_compra", value);
+                                  const inputValue = e.target.value;
+                                  // Reemplazar comas por puntos
+                                  let value = inputValue.replace(",", ".");
+                                  // Solo permitir números y un punto decimal
+                                  if (value === "" || /^\d*\.?\d*$/.test(value)) {
+                                    setItems((prevItems) => {
+                                      return prevItems.map((prevItem) => {
+                                        if (prevItem.id === item.id) {
+                                          const desc = prevItem.descuento || "0";
+                                          const costoNum = parseFloat(value);
+                                          const updatedItem: ItemCompra = {
+                                            ...prevItem,
+                                            costo_compra: value,
+                                          };
+
+                                          // El costo_unit_neto se actualizará automáticamente en el useEffect
+                                          // que incluye los otros cargos
+
+                                          return updatedItem;
+                                        }
+                                        return prevItem;
+                                      });
+                                    });
                                   }
                                 }}
                                 className="w-24 text-right"
                               />
                             </div>
+                          </td>
+                          <td className="py-3 px-4">
+                            <div className="flex items-center justify-end gap-1">
+                              <Input
+                                type="text"
+                                inputMode="decimal"
+                                value={item.descuento || ""}
+                                onChange={(e) => {
+                                  const inputValue = e.target.value;
+                                  // Reemplazar comas por puntos
+                                  let value = inputValue.replace(",", ".");
+                                  // Solo permitir números y un punto decimal
+                                  if (value === "" || /^\d*\.?\d*$/.test(value)) {
+                                    const desc = parseFloat(value);
+                                    // Validar que esté entre 0 y 100
+                                    if (value === "" || (!isNaN(desc) && desc >= 0 && desc <= 100)) {
+                                      setItems((prevItems) => {
+                                        return prevItems.map((prevItem) => {
+                                          if (prevItem.id === item.id) {
+                                            const costoUnit = prevItem.costo_compra || "0";
+                                            const updatedItem: ItemCompra = {
+                                              ...prevItem,
+                                              descuento: value,
+                                            };
+
+                                            // El costo_unit_neto se actualizará automáticamente en el useEffect
+                                            // que incluye los otros cargos
+
+                                            return updatedItem;
+                                          }
+                                          return prevItem;
+                                        });
+                                      });
+                                    }
+                                  }
+                                }}
+                                className="w-20 text-right"
+                                placeholder="0"
+                              />
+                              <span className="text-gray-500 dark:text-gray-400">%</span>
+                            </div>
+                          </td>
+                          <td className="py-3 px-4 text-right">
+                            <span className="font-semibold text-base text-gray-700 dark:text-gray-300">
+                              ${costoUnitConDescuento.toFixed(2)}
+                            </span>
+                          </td>
+                          <td className="py-3 px-4 text-right">
+                            <span className="font-semibold text-sm text-gray-700 dark:text-gray-300">
+                              ${otrosCargosUnit.toFixed(2)}
+                            </span>
+                          </td>
+                          <td className="py-3 px-4 text-right">
+                            <span className="font-semibold text-base text-gray-700 dark:text-gray-300">
+                              ${costoUnitNeto.toFixed(2)}
+                            </span>
                           </td>
                           <td className="py-3 px-4 text-right">
                             <span className="font-bold text-lg text-indigo-600 dark:text-indigo-400">
@@ -631,11 +849,60 @@ export default function CompraForm() {
           </CardContent>
         </Card>
 
-        {/* Total */}
+        {/* Impuestos y Total */}
         {items.length > 0 && (
           <Card className="bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-900/20 dark:to-purple-900/20 border-2 border-indigo-200 dark:border-indigo-800">
-            <CardContent className="pt-6">
+            <CardContent className="pt-6 space-y-4">
+              {/* Input de Impuestos */}
               <div className="flex items-center justify-between">
+                <Label htmlFor="impuestos" className="text-lg font-semibold text-gray-700 dark:text-gray-300">
+                  Impuestos:
+                </Label>
+                <div className="flex items-center gap-2">
+                  <span className="text-gray-500 dark:text-gray-400">$</span>
+                  <Input
+                    id="impuestos"
+                    type="text"
+                    inputMode="decimal"
+                    value={impuestos}
+                    onChange={(e) => {
+                      const value = e.target.value.replace(",", ".");
+                      if (value === "" || /^\d*\.?\d*$/.test(value)) {
+                        setImpuestos(value);
+                      }
+                    }}
+                    className="w-32 text-right"
+                    placeholder="0.00"
+                  />
+                </div>
+              </div>
+
+              {/* Input de Otros Cargos */}
+              <div className="flex items-center justify-between">
+                <Label htmlFor="otros-cargos" className="text-lg font-semibold text-gray-700 dark:text-gray-300">
+                  Otros Cargos:
+                </Label>
+                <div className="flex items-center gap-2">
+                  <span className="text-gray-500 dark:text-gray-400">$</span>
+                  <Input
+                    id="otros-cargos"
+                    type="text"
+                    inputMode="decimal"
+                    value={otrosCargos}
+                    onChange={(e) => {
+                      const value = e.target.value.replace(",", ".");
+                      if (value === "" || /^\d*\.?\d*$/.test(value)) {
+                        setOtrosCargos(value);
+                      }
+                    }}
+                    className="w-32 text-right"
+                    placeholder="0.00"
+                  />
+                </div>
+              </div>
+
+              {/* Total de la Compra */}
+              <div className="flex items-center justify-between pt-4 border-t border-indigo-200 dark:border-indigo-700">
                 <div>
                   <span className="text-2xl font-semibold text-gray-700 dark:text-gray-300">
                     Total de la Compra:
@@ -646,7 +913,7 @@ export default function CompraForm() {
                 </div>
                 <div className="text-right">
                   <span className="text-4xl font-bold text-indigo-600 dark:text-indigo-400">
-                    ${total.toFixed(2)}
+                    ${calcularTotal().toFixed(2)}
                   </span>
                 </div>
               </div>
