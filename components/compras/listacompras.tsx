@@ -161,7 +161,7 @@ export default function ListaCompras() {
       // Cargar información de artículos únicos
       const codintsUnicos = new Set<string>();
       comprasParsed.forEach((compra) => {
-        compra.items?.forEach((item) => {
+        compra.items?.forEach((item: Compras['items'][0]) => {
           if (item.codint) {
             codintsUnicos.add(item.codint);
           }
