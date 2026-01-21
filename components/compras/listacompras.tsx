@@ -42,7 +42,7 @@ export default function ListaCompras() {
   const [fechaHasta, setFechaHasta] = useState("");
   const [busquedaProveedor, setBusquedaProveedor] = useState("");
   const [totalConsulta, setTotalConsulta] = useState(0);
-  const [articulosInfo, setArticulosInfo] = useState<Map<string, ArticuloInfo>>(new Map());
+  const [articulosInfo, setArticulosInfo] = useState<Record<string, ArticuloInfo>>({});
 
   const parseCurrency = (value: string | number | null | undefined) => {
     if (value === null || value === undefined) return 0;
@@ -95,19 +95,19 @@ export default function ListaCompras() {
         return;
       }
 
-      const infoMap = new Map<string, ArticuloInfo>();
+      const infoRecord: Record<string, ArticuloInfo> = {};
       (data || []).forEach((art) => {
         if (art.codint) {
-          infoMap.set(art.codint, {
+          infoRecord[art.codint] = {
             codint: art.codint,
             costo_compra: art.costo_compra || "0.00",
             porcentaje_aplicar: art.porcentaje_aplicar || "0",
             precio_venta: art.precio_venta || "0.00",
-          });
+          };
         }
       });
 
-      setArticulosInfo(infoMap);
+      setArticulosInfo(infoRecord);
     } catch (err) {
       console.error("Error al cargar información de artículos:", err);
     }
@@ -464,7 +464,7 @@ export default function ListaCompras() {
                 </tr>,
                 mostrandoItems === compra.id && compra.items && compra.items.length > 0 ? (
                   <tr key={`${compra.id}-details`}>
-                    <td colSpan={6} className="px-4 py-4 bg-gray-50 dark:bg-gray-900/50">
+                    <td colSpan={7} className="px-4 py-4 bg-gray-50 dark:bg-gray-900/50">
                       <div className="space-y-2">
                         <h4 className="font-semibold text-sm text-gray-700 dark:text-gray-300 mb-3">
                           Detalle de Artículos:
@@ -484,7 +484,7 @@ export default function ListaCompras() {
                             </thead>
                             <tbody>
                               {compra.items.map((item, idx) => {
-                                const articuloInfo = articulosInfo.get(item.codint);
+                                const articuloInfo = articulosInfo[item.codint];
                                 return (
                                   <tr key={idx} className="border-b border-gray-200 dark:border-gray-700">
                                     <td className="px-2 py-2 font-mono">{item.codint}</td>
