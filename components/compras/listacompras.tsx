@@ -4,7 +4,8 @@ import { useState, useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { Home, ShoppingCart, Loader2, Plus, Edit, Trash2, Eye, Printer } from "lucide-react";
+import { Home, ShoppingCart, Loader2, Plus, Edit, Trash2, Eye, Printer, Download } from "lucide-react";
+import * as XLSX from "xlsx";
 
 type ArticuloInfo = {
   codint: string;
@@ -199,6 +200,33 @@ export default function ListaCompras() {
     window.print();
   };
 
+  const exportarExcel = () => {
+    if (compras.length === 0) {
+      alert("No hay compras para exportar.");
+      return;
+    }
+
+    const rows = [
+      ["Fecha", "Proveedor", "Total"],
+      ...compras.map((compra) => {
+        const fecha = compra.created_at
+          ? new Date(compra.created_at).toLocaleDateString("es-CL")
+          : "";
+        return [
+          fecha,
+          compra.proveedor || "",
+          Number.parseFloat(String(compra.total || "0")) || 0,
+        ];
+      }),
+      ["", "TOTAL", Number.parseFloat(totalConsulta.toFixed(2))],
+    ];
+
+    const worksheet = XLSX.utils.aoa_to_sheet(rows);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Compras");
+    XLSX.writeFile(workbook, `compras_${new Date().toISOString().slice(0, 10)}.xlsx`);
+  };
+
   const eliminarCompra = async (id: number, proveedor: string) => {
     if (!confirm(`¿Estás seguro de que deseas eliminar la compra del proveedor "${proveedor}"?`)) {
       return;
@@ -361,6 +389,15 @@ export default function ListaCompras() {
           >
             <Printer className="h-4 w-4" />
             Imprimir reporte
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={exportarExcel}
+            className="border-gray-300 dark:border-gray-600 flex items-center gap-2"
+          >
+            <Download className="h-4 w-4" />
+            Exportar Excel
           </Button>
         </div>
       </div>

@@ -4,7 +4,8 @@ import { useState, useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { Home, ShoppingCart, Loader2, Plus, Edit, Trash2, Eye, Printer } from "lucide-react";
+import { Home, ShoppingCart, Loader2, Plus, Edit, Trash2, Eye, Printer, Download } from "lucide-react";
+import * as XLSX from "xlsx";
 
 type Ventas = {
   id: number;
@@ -144,6 +145,33 @@ export default function ListaVentas() {
 
   const imprimirReporte = () => {
     window.print();
+  };
+
+  const exportarExcel = () => {
+    if (ventas.length === 0) {
+      alert("No hay ventas para exportar.");
+      return;
+    }
+
+    const rows = [
+      ["Fecha", "Cliente", "Total"],
+      ...ventas.map((venta) => {
+        const fecha = venta.created_at
+          ? new Date(venta.created_at).toLocaleDateString("es-CL")
+          : "";
+        return [
+          fecha,
+          venta.cliente || "",
+          Number.parseFloat(String(venta.total || "0")) || 0,
+        ];
+      }),
+      ["", "TOTAL", Number.parseFloat(totalConsulta.toFixed(2))],
+    ];
+
+    const worksheet = XLSX.utils.aoa_to_sheet(rows);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Ventas");
+    XLSX.writeFile(workbook, `ventas_${new Date().toISOString().slice(0, 10)}.xlsx`);
   };
 
   const eliminarVenta = async (id: number, cliente: string) => {
@@ -308,6 +336,15 @@ export default function ListaVentas() {
           >
             <Printer className="h-4 w-4" />
             Imprimir reporte
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={exportarExcel}
+            className="border-gray-300 dark:border-gray-600 flex items-center gap-2"
+          >
+            <Download className="h-4 w-4" />
+            Exportar Excel
           </Button>
         </div>
       </div>

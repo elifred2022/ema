@@ -28,7 +28,14 @@ export function FormArticulo({ className, ...props }: React.ComponentPropsWithou
   const [existencia, setExistencia] = useState("");
   const [situacion, setSituacion] = useState("");
 
+  type CommaField =
+    | "nombre_articulo"
+    | "descripcion"
+    | "costo_compra"
+    | "porcentaje_aplicar"
+    | "precio_venta";
   const [error, setError] = useState<string | null>(null);
+  const [commaErrors, setCommaErrors] = useState<Partial<Record<CommaField, string>>>({});
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
 
@@ -47,6 +54,22 @@ export function FormArticulo({ className, ...props }: React.ComponentPropsWithou
     setPrecio_venta("");
   }
 }
+
+  const limpiarComa = (field: CommaField, value: string) => {
+    if (value.includes(",")) {
+      setCommaErrors((prev) => ({
+        ...prev,
+        [field]: "No se permite , use .",
+      }));
+      return value.replace(/,/g, "");
+    }
+    setCommaErrors((prev) => {
+      if (!prev[field]) return prev;
+      const { [field]: _, ...rest } = prev;
+      return rest;
+    });
+    return value;
+  };
 
   const handleCrear = async (e: React.FormEvent) => {
   e.preventDefault();
@@ -150,8 +173,14 @@ export function FormArticulo({ className, ...props }: React.ComponentPropsWithou
                 type="text"
                 required
                 value={nombre_articulo}
-                onChange={(e) => setNombre_articulo(e.target.value)}
+                onChange={(e) => {
+                  const value = limpiarComa("nombre_articulo", e.target.value);
+                  setNombre_articulo(value);
+                }}
               />
+              {commaErrors.nombre_articulo && (
+                <p className="text-red-600 text-sm">{commaErrors.nombre_articulo}</p>
+              )}
             </div>
 
              <div className="grid gap-2">
@@ -161,8 +190,14 @@ export function FormArticulo({ className, ...props }: React.ComponentPropsWithou
                 type="text"
               
                 value={descripcion}
-                onChange={(e) => setDescripcion(e.target.value)}
+                onChange={(e) => {
+                  const value = limpiarComa("descripcion", e.target.value);
+                  setDescripcion(value);
+                }}
               />
+              {commaErrors.descripcion && (
+                <p className="text-red-600 text-sm">{commaErrors.descripcion}</p>
+              )}
             </div>
 
               <div className="grid gap-2">
@@ -209,13 +244,16 @@ export function FormArticulo({ className, ...props }: React.ComponentPropsWithou
                 inputMode="decimal"
                 value={costo_compra}
                 onChange={(e) => {
-                  const value = e.target.value.replace(",", ".");
+                  const value = limpiarComa("costo_compra", e.target.value);
                   if (/^\d*\.?\d*$/.test(value)) {
                     setCosto_compra(value);
                     calcularPrecioVenta(value, porcentaje_aplicar);
                   }
                 }}
               />
+              {commaErrors.costo_compra && (
+                <p className="text-red-600 text-sm">{commaErrors.costo_compra}</p>
+              )}
 
             </div>
 
@@ -227,13 +265,16 @@ export function FormArticulo({ className, ...props }: React.ComponentPropsWithou
                 inputMode="decimal"
                 value={porcentaje_aplicar}
                 onChange={(e) => {
-                  const value = e.target.value.replace(",", ".");
+                  const value = limpiarComa("porcentaje_aplicar", e.target.value);
                   if (/^\d*\.?\d*$/.test(value)) {
                     setPorcentaje_aplicar(value);
                     calcularPrecioVenta(costo_compra, value);
                   }
                 }}
               />
+              {commaErrors.porcentaje_aplicar && (
+                <p className="text-red-600 text-sm">{commaErrors.porcentaje_aplicar}</p>
+              )}
 
             </div>
 
@@ -247,10 +288,13 @@ export function FormArticulo({ className, ...props }: React.ComponentPropsWithou
                pattern="^\d+(\.\d{1,2})?$"
                 value={precio_venta}
                 onChange={(e) => {
-                  const value = e.target.value;
-                  if (/^\d*$/.test(value)) setPrecio_venta(value);
+                  const value = limpiarComa("precio_venta", e.target.value);
+                  if (/^\d*\.?\d*$/.test(value)) setPrecio_venta(value);
                 }}
               />
+              {commaErrors.precio_venta && (
+                <p className="text-red-600 text-sm">{commaErrors.precio_venta}</p>
+              )}
             </div>
 
              <div className="grid gap-2">

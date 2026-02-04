@@ -5,7 +5,8 @@ import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Home, Plus, Search, Edit, Trash2, ArrowDownCircle, ArrowUpCircle, X, Save } from "lucide-react";
+import { Home, Plus, Search, Edit, Trash2, ArrowDownCircle, ArrowUpCircle, X, Save, Printer, Download } from "lucide-react";
+import * as XLSX from "xlsx";
 
 
 type Articulo = {
@@ -36,6 +37,8 @@ export default function ListArticulos() {
   const [ingresarArticulo, setIngresarArticulo] = useState<Articulo | null>(null);
   const [descontarArticulo, setDescontarArticulo] = useState<Articulo | null>(null);
   const [ocultarArticuloInactivo, setOcultarArticuloInactivo] = useState(false);
+  const [fechaDesde, setFechaDesde] = useState("");
+  const [fechaHasta, setFechaHasta] = useState("");
 
   //variables ingreso y egreso articulos
   const [ingresart, setIngresArt] = useState("");
@@ -73,15 +76,42 @@ export default function ListArticulos() {
 
 
 
+  const toStartOfDayIso = (fecha: string) => {
+    const date = new Date(`${fecha}T00:00:00`);
+    return Number.isNaN(date.getTime()) ? null : date.toISOString();
+  };
+
+  const toEndOfDayIso = (fecha: string) => {
+    const date = new Date(`${fecha}T23:59:59.999`);
+    return Number.isNaN(date.getTime()) ? null : date.toISOString();
+  };
+
+  const cargarArticulos = async (filtros?: { desde?: string; hasta?: string }) => {
+    let query = supabase.from("articulos").select("*").order("created_at", { ascending: false });
+
+    if (filtros?.desde) {
+      const desdeIso = toStartOfDayIso(filtros.desde);
+      if (desdeIso) {
+        query = query.gte("created_at", desdeIso);
+      }
+    }
+
+    if (filtros?.hasta) {
+      const hastaIso = toEndOfDayIso(filtros.hasta);
+      if (hastaIso) {
+        query = query.lte("created_at", hastaIso);
+      }
+    }
+
+    const { data, error } = await query;
+
+    if (error) console.error("Error cargando articulos:", error);
+    else setArticulos(data || []);
+  };
+
   // Cargar datos
   useEffect(() => {
-    const fetchArticulos = async () => {
-      const { data, error } = await supabase.from("articulos").select("*")
-
-      if (error) console.error("Error cargando articulos:", error);
-      else setArticulos(data);
-    };
-    fetchArticulos();
+    cargarArticulos();
   }, [supabase]);
 
 
@@ -152,6 +182,62 @@ export default function ListArticulos() {
 
     return String(value);
   }
+
+  const aplicarFiltros = async () => {
+    await cargarArticulos({
+      desde: fechaDesde,
+      hasta: fechaHasta,
+    });
+  };
+
+  const limpiarFiltros = async () => {
+    setFechaDesde("");
+    setFechaHasta("");
+    await cargarArticulos();
+  };
+
+  const imprimirReporte = () => {
+    window.print();
+  };
+
+  const exportarExcel = () => {
+    if (filteredArticulos.length === 0) {
+      alert("No hay artículos para exportar.");
+      return;
+    }
+
+    const rows = [
+      [
+        "Fecha de alta",
+        "Codbar",
+        "Codint",
+        "Artículo",
+        "Descripción",
+        "Prov. sug.",
+        "Costo de compra",
+        "Porcentaje aplicable",
+        "Precio de venta",
+        "Existencia",
+      ],
+      ...filteredArticulos.map((articulo) => [
+        formatDate(articulo.created_at) || "",
+        renderValue(articulo.codbar),
+        renderValue(articulo.codint),
+        renderValue(articulo.nombre_articulo),
+        renderValue(articulo.descripcion),
+        renderValue(articulo.proveedor_sug),
+        renderValue(articulo.costo_compra),
+        renderValue(articulo.porcentaje_aplicar),
+        renderValue(articulo.precio_venta),
+        renderValue(articulo.existencia),
+      ]),
+    ];
+
+    const worksheet = XLSX.utils.aoa_to_sheet(rows);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Articulos");
+    XLSX.writeFile(workbook, `articulos_${new Date().toISOString().slice(0, 10)}.xlsx`);
+  };
 
   // Calcular automáticamente el precio de venta si cambia costo o porcentaje MODAL EDITAR
   useEffect(() => {
@@ -259,6 +345,24 @@ export default function ListArticulos() {
               />
             </div>
           </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-sm text-gray-600 dark:text-gray-400">Desde</label>
+            <input
+              type="date"
+              value={fechaDesde}
+              onChange={(e) => setFechaDesde(e.target.value)}
+              className="h-10 px-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-sm"
+            />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-sm text-gray-600 dark:text-gray-400">Hasta</label>
+            <input
+              type="date"
+              value={fechaHasta}
+              onChange={(e) => setFechaHasta(e.target.value)}
+              className="h-10 px-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-sm"
+            />
+          </div>
           <label className="flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-gray-700 rounded-lg cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors">
             <input
               type="checkbox"
@@ -270,6 +374,41 @@ export default function ListArticulos() {
               Ocultar artículos inactivos
             </span>
           </label>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              size="sm"
+              onClick={aplicarFiltros}
+              className="bg-indigo-600 hover:bg-indigo-700 text-white"
+            >
+              Buscar
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={limpiarFiltros}
+              className="border-gray-300 dark:border-gray-600"
+            >
+              Limpiar
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={imprimirReporte}
+              className="border-gray-300 dark:border-gray-600 flex items-center gap-2"
+            >
+              <Printer className="h-4 w-4" />
+              Imprimir reporte
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={exportarExcel}
+              className="border-gray-300 dark:border-gray-600 flex items-center gap-2"
+            >
+              <Download className="h-4 w-4" />
+              Exportar Excel
+            </Button>
+          </div>
         </div>
 
         <div className="overflow-x-auto rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 max-h-[calc(100vh-300px)] overflow-y-auto">
