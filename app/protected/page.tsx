@@ -22,6 +22,7 @@ export default async function ProtectedPage() {
   const adminEmailsSet = new Set([
     "elifredmason@gmail.com",
     "mirimer6@gmail.com",
+    "damtreo2022@gmail.com",
   ].map(e => e.toLowerCase().trim()));
 
   console.log("DEBUG - Emails de admin:", Array.from(adminEmailsSet));
