@@ -53,6 +53,15 @@ export default function VentasForm() {
   const [error, setError] = useState<string | null>(null);
   const [busquedaArticulo, setBusquedaArticulo] = useState("");
   const [codbarScan, setCodbarScan] = useState("");
+  const [condPago, setCondPago] = useState("");
+
+  const OPCIONES_COND_PAGO = [
+    "Efectivo",
+    "Transferencia",
+    "Cuenta corriente",
+    "Debito",
+    "T credito",
+  ];
 
   const procesarCodbar = (codigo: string) => {
     const valor = codigo.trim();
@@ -104,12 +113,13 @@ export default function VentasForm() {
             setVentaId(id);
             const { data: ventaData, error: ventaError } = await supabase
               .from("ventas")
-              .select("id, cliente, items, total")
+              .select("id, cliente, items, total, cond_pago")
               .eq("id", id)
               .single();
 
             if (ventaData && !ventaError) {
               setCliente(ventaData.cliente || "");
+              setCondPago(ventaData.cond_pago || "");
               // Parsear items si vienen como string JSON
               const itemsParsed = typeof ventaData.items === 'string' 
                 ? JSON.parse(ventaData.items) 
@@ -258,6 +268,7 @@ export default function VentasForm() {
             cliente,
             items: itemsParaGuardar,
             total,
+            cond_pago: condPago || null,
           })
           .eq("id", ventaId);
 
@@ -272,6 +283,7 @@ export default function VentasForm() {
           cliente,
           items: itemsParaGuardar,
           total,
+          cond_pago: condPago || null,
         });
 
         if (insertError) {
@@ -664,7 +676,7 @@ export default function VentasForm() {
         {/* Total */}
         {items.length > 0 && (
           <Card className="bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-900/20 dark:to-purple-900/20 border-2 border-indigo-200 dark:border-indigo-800">
-            <CardContent className="pt-6">
+            <CardContent className="pt-6 space-y-4">
               <div className="flex items-center justify-between">
                 <div>
                   <span className="text-2xl font-semibold text-gray-700 dark:text-gray-300">
@@ -679,6 +691,22 @@ export default function VentasForm() {
                     ${total.toFixed(2)}
                   </span>
                 </div>
+              </div>
+              <div className="grid gap-2 pt-2 border-t border-indigo-200/50 dark:border-indigo-800/50">
+                <Label htmlFor="cond-pago">Condición de pago</Label>
+                <select
+                  id="cond-pago"
+                  value={condPago}
+                  onChange={(e) => setCondPago(e.target.value)}
+                  className="flex h-10 w-full max-w-xs rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                >
+                  <option value="">Selecciona condición de pago</option>
+                  {OPCIONES_COND_PAGO.map((opcion) => (
+                    <option key={opcion} value={opcion}>
+                      {opcion}
+                    </option>
+                  ))}
+                </select>
               </div>
             </CardContent>
           </Card>

@@ -10,6 +10,7 @@ import * as XLSX from "xlsx";
 type Ventas = {
   id: number;
   cliente: string;
+  cond_pago: string;
   items: Array<{
     codint: string;
     nombre_articulo: string;
@@ -17,7 +18,7 @@ type Ventas = {
     familia: string;
     cant: number;
     precio_venta: string;
-    
+   
   }>;
   total: string | number;
   created_at?: string;
@@ -78,7 +79,7 @@ export default function ListaVentas() {
     try {
       let query = supabase
         .from("ventas")
-        .select("id, cliente, items, total, created_at")
+        .select("id, cliente, items, total, created_at, cond_pago")
         .order("created_at", { ascending: false });
 
       if (filtros?.desde) {
@@ -154,7 +155,7 @@ export default function ListaVentas() {
     }
 
     const rows = [
-      ["Fecha", "Cliente", "Total"],
+      ["Fecha", "Cliente", "Cond. Pago", "Total"],
       ...ventas.map((venta) => {
         const fecha = venta.created_at
           ? new Date(venta.created_at).toLocaleDateString("es-CL")
@@ -162,10 +163,11 @@ export default function ListaVentas() {
         return [
           fecha,
           venta.cliente || "",
+          venta.cond_pago || "",
           Number.parseFloat(String(venta.total || "0")) || 0,
         ];
       }),
-      ["", "TOTAL", Number.parseFloat(totalConsulta.toFixed(2))],
+      ["", "", "TOTAL", Number.parseFloat(totalConsulta.toFixed(2))],
     ];
 
     const worksheet = XLSX.utils.aoa_to_sheet(rows);
@@ -365,6 +367,7 @@ export default function ListaVentas() {
                 <th className={headerClass}>Items</th>
                 <th className={headerClass}>Total</th>
                 <th className={headerClass}>Fecha</th>
+                <th className={headerClass}>Condicion de pago</th>
                 <th className={headerClass}>Acciones</th>
               </tr>
             </thead>
@@ -414,6 +417,11 @@ export default function ListaVentas() {
                       )}
                   </td>
                   <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">
+                    {venta.cond_pago || (
+                      <span className="text-gray-400 dark:text-gray-500 italic">N/A</span>
+                    )}
+                  </td>
+                  <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">
                     <div className="flex items-center gap-2">
                       <Link href={`/auth/rut-ventas/boleta/${venta.id}`}>
                         <Button
@@ -454,7 +462,7 @@ export default function ListaVentas() {
                 </tr>,
                 mostrandoItems === venta.id && venta.items && venta.items.length > 0 ? (
                   <tr key={`${venta.id}-details`}>
-                    <td colSpan={6} className="px-4 py-4 bg-gray-50 dark:bg-gray-900/50">
+                    <td colSpan={7} className="px-4 py-4 bg-gray-50 dark:bg-gray-900/50">
                       <div className="space-y-2">
                         <h4 className="font-semibold text-sm text-gray-700 dark:text-gray-300 mb-3">
                           Detalle de Artículos:

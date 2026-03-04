@@ -9,6 +9,7 @@ import Link from "next/link";
 type Venta = {
   id: number;
   cliente: string;
+  cond_pago?: string;
   items: Array<{
     codint: string;
     nombre_articulo: string;
@@ -40,7 +41,7 @@ export default function Boleta({ ventaId }: { ventaId: number }) {
         // Cargar datos de la venta
         const { data: ventaData, error: ventaError } = await supabase
           .from("ventas")
-          .select("id, cliente, items, total, created_at")
+          .select("id, cliente, items, total, created_at, cond_pago")
           .eq("id", ventaId)
           .single();
 
@@ -232,8 +233,15 @@ export default function Boleta({ ventaId }: { ventaId: number }) {
           </div>
         </div>
 
-        {/* Total */}
-        <div className="mt-6 pt-4 border-t-2 border-gray-300 dark:border-gray-700">
+        {/* Total y Condición de pago */}
+        <div className="mt-6 pt-4 border-t-2 border-gray-300 dark:border-gray-700 space-y-2">
+          {venta.cond_pago && (
+            <div className="flex justify-between items-center">
+              <p className="text-gray-700 dark:text-gray-300">
+                <span className="font-semibold">Condición de pago:</span> {venta.cond_pago}
+              </p>
+            </div>
+          )}
           <div className="flex justify-end">
             <div className="text-right">
               <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">
