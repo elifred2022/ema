@@ -54,6 +54,9 @@ export default function VentasForm() {
   const [busquedaArticulo, setBusquedaArticulo] = useState("");
   const [codbarScan, setCodbarScan] = useState("");
   const [condPago, setCondPago] = useState("");
+  const [pago, setPago] = useState("");
+  const [modalVueltoAbierto, setModalVueltoAbierto] = useState(false);
+  const [montoRecibido, setMontoRecibido] = useState("");
 
   const OPCIONES_COND_PAGO = [
     "Efectivo",
@@ -113,13 +116,14 @@ export default function VentasForm() {
             setVentaId(id);
             const { data: ventaData, error: ventaError } = await supabase
               .from("ventas")
-              .select("id, cliente, items, total, cond_pago")
+              .select("id, cliente, items, total, cond_pago, pago")
               .eq("id", id)
               .single();
 
             if (ventaData && !ventaError) {
               setCliente(ventaData.cliente || "");
               setCondPago(ventaData.cond_pago || "");
+              setPago(ventaData.pago || "");
               // Parsear items si vienen como string JSON
               const itemsParsed = typeof ventaData.items === 'string' 
                 ? JSON.parse(ventaData.items) 
@@ -269,6 +273,7 @@ export default function VentasForm() {
             items: itemsParaGuardar,
             total,
             cond_pago: condPago || null,
+            pago: pago || null,
           })
           .eq("id", ventaId);
 
@@ -284,6 +289,7 @@ export default function VentasForm() {
           items: itemsParaGuardar,
           total,
           cond_pago: condPago || null,
+          pago: pago || null,
         });
 
         if (insertError) {
@@ -694,18 +700,50 @@ export default function VentasForm() {
               </div>
               <div className="grid gap-2 pt-2 border-t border-indigo-200/50 dark:border-indigo-800/50">
                 <Label htmlFor="cond-pago">Condición de pago</Label>
+                <div className="flex flex-wrap items-center gap-3">
+                  <select
+                    id="cond-pago"
+                    value={condPago}
+                    onChange={(e) => {
+                      setCondPago(e.target.value);
+                      if (e.target.value !== "Efectivo") {
+                        setModalVueltoAbierto(false);
+                        setMontoRecibido("");
+                      }
+                    }}
+                    className="flex h-10 w-full max-w-xs rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                  >
+                    <option value="">Selecciona condición de pago</option>
+                    {OPCIONES_COND_PAGO.map((opcion) => (
+                      <option key={opcion} value={opcion}>
+                        {opcion}
+                      </option>
+                    ))}
+                  </select>
+                  {condPago === "Efectivo" && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setModalVueltoAbierto(true)}
+                      className="border-emerald-500 text-emerald-600 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-900/20"
+                    >
+                      Calcular vuelto
+                    </Button>
+                  )}
+                </div>
+              </div>
+              <div className="grid gap-2 pt-2 border-t border-indigo-200/50 dark:border-indigo-800/50">
+                <Label htmlFor="pago">Estado de pago</Label>
                 <select
-                  id="cond-pago"
-                  value={condPago}
-                  onChange={(e) => setCondPago(e.target.value)}
+                  id="pago"
+                  value={pago}
+                  onChange={(e) => setPago(e.target.value)}
                   className="flex h-10 w-full max-w-xs rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                 >
-                  <option value="">Selecciona condición de pago</option>
-                  {OPCIONES_COND_PAGO.map((opcion) => (
-                    <option key={opcion} value={opcion}>
-                      {opcion}
-                    </option>
-                  ))}
+                  <option value="">Selecciona estado</option>
+                  <option value="pago">Pago</option>
+                  <option value="impago">Impago</option>
                 </select>
               </div>
             </CardContent>
@@ -734,6 +772,87 @@ export default function VentasForm() {
           </Button>
         </div>
       </form>
+
+      {/* Modal calculadora de vuelto - solo para Efectivo */}
+      {modalVueltoAbierto && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
+          onClick={() => setModalVueltoAbierto(false)}
+        >
+          <div
+            className="relative w-full max-w-md mx-4 bg-white dark:bg-gray-800 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 p-6"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-4">
+              Calculadora de vuelto
+            </h3>
+
+            <div className="space-y-4">
+              <div>
+                <Label className="text-gray-600 dark:text-gray-400">Total a pagar</Label>
+                <p className="text-2xl font-bold text-indigo-600 dark:text-indigo-400 mt-1">
+                  ${total.toFixed(2)}
+                </p>
+              </div>
+
+              <div className="grid gap-2">
+                <Label htmlFor="monto-recibido">Monto recibido</Label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 dark:text-gray-400">$</span>
+                  <Input
+                    id="monto-recibido"
+                    type="text"
+                    inputMode="decimal"
+                    placeholder="0.00"
+                    value={montoRecibido}
+                    onChange={(e) => {
+                      const value = e.target.value.replace(",", ".");
+                      if (/^\d*\.?\d*$/.test(value) || value === "") setMontoRecibido(value);
+                    }}
+                    className="pl-8 text-lg font-semibold"
+                    autoFocus
+                  />
+                </div>
+              </div>
+
+              <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
+                <Label className="text-gray-600 dark:text-gray-400">Vuelto a dar al cliente</Label>
+                <p
+                  className={`text-3xl font-bold mt-1 ${
+                    (parseFloat(montoRecibido) || 0) >= total
+                      ? "text-emerald-600 dark:text-emerald-400"
+                      : (parseFloat(montoRecibido) || 0) > 0
+                      ? "text-red-600 dark:text-red-400"
+                      : "text-gray-400 dark:text-gray-500"
+                  }`}
+                >
+                  $
+                  {montoRecibido
+                    ? Math.max(0, (parseFloat(montoRecibido) || 0) - total).toFixed(2)
+                    : "0.00"}
+                </p>
+                {(parseFloat(montoRecibido) || 0) > 0 && (parseFloat(montoRecibido) || 0) < total && (
+                  <p className="text-sm text-red-600 dark:text-red-400 mt-1">
+                    Monto insuficiente. Faltan ${(total - (parseFloat(montoRecibido) || 0)).toFixed(2)}
+                  </p>
+                )}
+              </div>
+            </div>
+
+            <div className="mt-6 flex justify-end">
+              <Button
+                type="button"
+                onClick={() => {
+                  setModalVueltoAbierto(false);
+                  setMontoRecibido("");
+                }}
+              >
+                Cerrar
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
